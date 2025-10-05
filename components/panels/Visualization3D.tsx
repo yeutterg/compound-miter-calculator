@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Line } from '@react-three/drei';
+import { OrbitControls, Grid, Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useCalculatorStore } from '@/lib/store';
 import { toMillimeters } from '@/lib/utils/unitConversions';
@@ -18,7 +18,212 @@ interface PolygonShapeProps {
   showMaterial: boolean;
 }
 
-function PolygonShape({
+// Side elevation cross-section view component
+function SideElevationView({
+  diameter,
+  height,
+  sideAngle,
+  thickness,
+  showMaterial,
+}: Omit<PolygonShapeProps, 'numberOfSides'>) {
+  const halfWidth = diameter / 2;
+
+  // Calculate the horizontal offset at the top based on the side angle
+  // sideAngle is measured from vertical (90° = vertical, 0° = horizontal)
+  const angleFromVertical = 90 - sideAngle;
+  const angleRad = (angleFromVertical * Math.PI) / 180;
+  const horizontalOffset = height * Math.tan(angleRad);
+
+  // Outer profile points (going counterclockwise from bottom-left)
+  const outerPoints = useMemo(() => [
+    new THREE.Vector3(-halfWidth, 0, 0),                          // Bottom left
+    new THREE.Vector3(-halfWidth + horizontalOffset, height, 0),  // Top left
+    new THREE.Vector3(halfWidth - horizontalOffset, height, 0),   // Top right
+    new THREE.Vector3(halfWidth, 0, 0),                           // Bottom right
+  ], [halfWidth, height, horizontalOffset]);
+
+  // Inner profile points (for material thickness)
+  const innerPoints = useMemo(() => {
+    // Thickness offset perpendicular to the sloped side
+    const thicknessOffsetX = thickness * Math.sin(angleRad);
+    const thicknessOffsetY = thickness * Math.cos(angleRad);
+
+    return [
+      new THREE.Vector3(-halfWidth + thicknessOffsetX, thicknessOffsetY, 0),
+      new THREE.Vector3(-halfWidth + horizontalOffset - thicknessOffsetX, height - thicknessOffsetY, 0),
+      new THREE.Vector3(halfWidth - horizontalOffset + thicknessOffsetX, height - thicknessOffsetY, 0),
+      new THREE.Vector3(halfWidth - thicknessOffsetX, thicknessOffsetY, 0),
+    ];
+  }, [halfWidth, height, horizontalOffset, thickness, angleRad]);
+
+  // Create edge lines
+  const outerEdges: [THREE.Vector3, THREE.Vector3][] = useMemo(() => [
+    [outerPoints[0], outerPoints[1]], // Left side
+    [outerPoints[1], outerPoints[2]], // Top
+    [outerPoints[2], outerPoints[3]], // Right side
+    [outerPoints[3], outerPoints[0]], // Bottom
+  ], [outerPoints]);
+
+  const innerEdges: [THREE.Vector3, THREE.Vector3][] = useMemo(() => [
+    [innerPoints[0], innerPoints[1]], // Left side
+    [innerPoints[1], innerPoints[2]], // Top
+    [innerPoints[2], innerPoints[3]], // Right side
+    [innerPoints[3], innerPoints[0]], // Bottom
+  ], [innerPoints]);
+
+  return (
+    <group>
+      {/* Outer wireframe */}
+      {outerEdges.map((edge, i) => (
+        <Line
+          key={`outer-${i}`}
+          points={[edge[0], edge[1]]}
+          color="#2563eb"
+          lineWidth={3}
+        />
+      ))}
+
+      {/* Inner wireframe (material thickness) */}
+      {showMaterial && thickness > 0 && innerEdges.map((edge, i) => (
+        <Line
+          key={`inner-${i}`}
+          points={[edge[0], edge[1]]}
+          color="#10b981"
+          lineWidth={2}
+        />
+      ))}
+
+      {/* Semi-transparent fill */}
+      <mesh>
+        <shapeGeometry args={[
+          new THREE.Shape([
+            new THREE.Vector2(outerPoints[0].x, outerPoints[0].y),
+            new THREE.Vector2(outerPoints[1].x, outerPoints[1].y),
+            new THREE.Vector2(outerPoints[2].x, outerPoints[2].y),
+            new THREE.Vector2(outerPoints[3].x, outerPoints[3].y),
+          ])
+        ]} />
+        <meshBasicMaterial
+          color="#3b82f6"
+          transparent
+          opacity={showMaterial ? 0.15 : 0.08}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+
+      {/* Annotations */}
+      <group>
+        {/* Height dimension */}
+        <Line
+          points={[
+            new THREE.Vector3(halfWidth + 0.3, 0, 0),
+            new THREE.Vector3(halfWidth + 0.3, height, 0),
+          ]}
+          color="#94a3b8"
+          lineWidth={1}
+          dashed
+          dashSize={0.05}
+          gapSize={0.05}
+        />
+        <Text
+          position={[halfWidth + 0.5, height / 2, 0]}
+          fontSize={0.15}
+          color="#e2e8f0"
+          anchorX="left"
+          anchorY="middle"
+        >
+          H
+        </Text>
+
+        {/* Side angle annotation */}
+        <Text
+          position={[halfWidth - 0.4, 0.3, 0]}
+          fontSize={0.12}
+          color="#fbbf24"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {sideAngle}°
+        </Text>
+
+        {/* Diameter/width dimension */}
+        <Line
+          points={[
+            new THREE.Vector3(-halfWidth, -0.3, 0),
+            new THREE.Vector3(halfWidth, -0.3, 0),
+          ]}
+          color="#94a3b8"
+          lineWidth={1}
+          dashed
+          dashSize={0.05}
+          gapSize={0.05}
+        />
+        <Text
+          position={[0, -0.5, 0]}
+          fontSize={0.15}
+          color="#e2e8f0"
+          anchorX="center"
+          anchorY="middle"
+        >
+          D
+        </Text>
+
+        {/* Material thickness indicator */}
+        {showMaterial && thickness > 0 && (
+          <>
+            <Line
+              points={[
+                outerPoints[0],
+                innerPoints[0],
+              ]}
+              color="#10b981"
+              lineWidth={1.5}
+            />
+            <Text
+              position={[-halfWidth - 0.3, 0.1, 0]}
+              fontSize={0.1}
+              color="#10b981"
+              anchorX="right"
+              anchorY="middle"
+            >
+              t
+            </Text>
+          </>
+        )}
+
+        {/* Angle arc visualization */}
+        <primitive object={createAngleArc(sideAngle, halfWidth, 0.3)} />
+      </group>
+    </group>
+  );
+}
+
+// Helper to create angle arc
+function createAngleArc(angle: number, x: number, radius: number) {
+  const group = new THREE.Group();
+  const angleRad = (angle * Math.PI) / 180;
+  const startAngle = Math.PI / 2; // 90 degrees (pointing up)
+  const endAngle = startAngle - angleRad;
+
+  const curve = new THREE.EllipseCurve(
+    x, 0,           // center
+    radius, radius, // xRadius, yRadius
+    startAngle, endAngle, // start, end angle
+    true,           // clockwise
+    0               // rotation
+  );
+
+  const points = curve.getPoints(32).map(p => new THREE.Vector3(p.x, p.y, 0));
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const material = new THREE.LineBasicMaterial({ color: 0xfbbf24, linewidth: 1 });
+  const line = new THREE.Line(geometry, material);
+
+  group.add(line);
+  return group;
+}
+
+// 3D polygon shape component
+function PolygonShape3D({
   numberOfSides,
   diameter,
   height,
@@ -28,28 +233,29 @@ function PolygonShape({
 }: PolygonShapeProps) {
   const radius = diameter / 2;
 
-  // Calculate top radius based on taper
-  const taperAngle = 90 - sideAngle;
-  const taperAngleRad = (taperAngle * Math.PI) / 180;
-  const radiusReduction = height * Math.tan(taperAngleRad);
-  const topRadius = Math.max(0, radius - radiusReduction);
+  // Calculate horizontal offset at top based on side angle
+  const angleFromVertical = 90 - sideAngle;
+  const angleRad = (angleFromVertical * Math.PI) / 180;
+  const horizontalOffset = height * Math.tan(angleRad);
+
+  // Bottom and top radii
+  const bottomRadius = radius;
+  const topRadius = Math.max(0.1, radius - horizontalOffset);
 
   // Generate polygon points
-  const generatePolygonPoints = useMemo(() => {
-    return (r: number, z: number) => {
-      const points: THREE.Vector3[] = [];
-      for (let i = 0; i < numberOfSides; i++) {
-        const angle = (i / numberOfSides) * Math.PI * 2;
-        const x = r * Math.cos(angle);
-        const y = r * Math.sin(angle);
-        points.push(new THREE.Vector3(x, y, z));
-      }
-      return points;
-    };
-  }, [numberOfSides]);
+  const generatePolygonPoints = (r: number, yPos: number) => {
+    const points: THREE.Vector3[] = [];
+    for (let i = 0; i < numberOfSides; i++) {
+      const angle = (i / numberOfSides) * Math.PI * 2;
+      const x = r * Math.cos(angle);
+      const z = r * Math.sin(angle);
+      points.push(new THREE.Vector3(x, yPos, z));
+    }
+    return points;
+  };
 
-  const bottomPoints = useMemo(() => generatePolygonPoints(radius, 0), [radius, generatePolygonPoints]);
-  const topPoints = useMemo(() => generatePolygonPoints(topRadius, height), [topRadius, height, generatePolygonPoints]);
+  const bottomPoints = generatePolygonPoints(bottomRadius, 0);
+  const topPoints = generatePolygonPoints(topRadius, height);
 
   // Create edges
   const edges = useMemo(() => {
@@ -62,100 +268,21 @@ function PolygonShape({
     }
 
     // Top edges
-    if (topRadius > 0) {
-      for (let i = 0; i < numberOfSides; i++) {
-        const next = (i + 1) % numberOfSides;
-        lines.push([topPoints[i], topPoints[next]]);
-      }
+    for (let i = 0; i < numberOfSides; i++) {
+      const next = (i + 1) % numberOfSides;
+      lines.push([topPoints[i], topPoints[next]]);
     }
 
     // Vertical edges
     for (let i = 0; i < numberOfSides; i++) {
-      if (topRadius > 0) {
-        lines.push([bottomPoints[i], topPoints[i]]);
-      } else {
-        // Taper to a point at the top
-        lines.push([bottomPoints[i], new THREE.Vector3(0, 0, height)]);
-      }
+      lines.push([bottomPoints[i], topPoints[i]]);
     }
 
     return lines;
-  }, [bottomPoints, topPoints, numberOfSides, topRadius, height]);
-
-  // Create faces (semi-transparent)
-  const faces = useMemo(() => {
-    const geometries: THREE.BufferGeometry[] = [];
-
-    // Side faces
-    for (let i = 0; i < numberOfSides; i++) {
-      const next = (i + 1) % numberOfSides;
-      const geometry = new THREE.BufferGeometry();
-
-      if (topRadius > 0) {
-        // Quad face (two triangles)
-        const vertices = new Float32Array([
-          ...bottomPoints[i].toArray(),
-          ...bottomPoints[next].toArray(),
-          ...topPoints[next].toArray(),
-          ...bottomPoints[i].toArray(),
-          ...topPoints[next].toArray(),
-          ...topPoints[i].toArray(),
-        ]);
-        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-      } else {
-        // Triangle face (tapered to point)
-        const apex = new THREE.Vector3(0, 0, height);
-        const vertices = new Float32Array([
-          ...bottomPoints[i].toArray(),
-          ...bottomPoints[next].toArray(),
-          ...apex.toArray(),
-        ]);
-        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-      }
-
-      geometry.computeVertexNormals();
-      geometries.push(geometry);
-    }
-
-    // Top face
-    if (topRadius > 0) {
-      const shape = new THREE.Shape();
-      topPoints.forEach((point, i) => {
-        if (i === 0) {
-          shape.moveTo(point.x, point.y);
-        } else {
-          shape.lineTo(point.x, point.y);
-        }
-      });
-      shape.closePath();
-
-      const geometry = new THREE.ShapeGeometry(shape);
-      // Rotate to horizontal and position at top
-      geometry.rotateX(Math.PI / 2);
-      geometry.translate(0, 0, height);
-      geometries.push(geometry);
-    }
-
-    // Bottom face
-    const bottomShape = new THREE.Shape();
-    bottomPoints.forEach((point, i) => {
-      if (i === 0) {
-        bottomShape.moveTo(point.x, point.y);
-      } else {
-        bottomShape.lineTo(point.x, point.y);
-      }
-    });
-    bottomShape.closePath();
-
-    const bottomGeometry = new THREE.ShapeGeometry(bottomShape);
-    bottomGeometry.rotateX(-Math.PI / 2);
-    geometries.push(bottomGeometry);
-
-    return geometries;
-  }, [bottomPoints, topPoints, numberOfSides, topRadius, height]);
+  }, [bottomPoints, topPoints, numberOfSides]);
 
   return (
-    <group>
+    <group rotation={[-Math.PI / 2, 0, 0]}>
       {/* Wireframe edges */}
       {edges.map((edge, i) => (
         <Line
@@ -165,47 +292,6 @@ function PolygonShape({
           lineWidth={2}
         />
       ))}
-
-      {/* Semi-transparent faces */}
-      {faces.map((geometry, i) => (
-        <mesh key={i} geometry={geometry}>
-          <meshBasicMaterial
-            color="#3b82f6"
-            transparent
-            opacity={showMaterial ? 0.2 : 0.1}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      ))}
-
-      {/* Material thickness visualization (if enabled) */}
-      {showMaterial && thickness > 0 && (
-        <group>
-          {/* Inner wireframe */}
-          {edges.map((edge, i) => {
-            const scale = Math.max(0, (radius - thickness) / radius);
-            const innerEdge = edge.map(point => {
-              const scaled = new THREE.Vector3(
-                point.x * scale,
-                point.y * scale,
-                point.z
-              );
-              return scaled;
-            }) as [THREE.Vector3, THREE.Vector3];
-
-            return (
-              <Line
-                key={`inner-${i}`}
-                points={[innerEdge[0], innerEdge[1]]}
-                color="#94a3b8"
-                lineWidth={1}
-                transparent
-                opacity={0.5}
-              />
-            );
-          })}
-        </group>
-      )}
     </group>
   );
 }
@@ -236,8 +322,8 @@ export function Visualization3D() {
 
   // Camera settings based on view mode
   const cameraPosition: [number, number, number] = is3DView
-    ? [2, 2, 2]      // 3D perspective view
-    : [5, 0, 0];     // 2D side elevation view (looking from the side)
+    ? [3, 3, 3]      // 3D perspective view
+    : [0, 0, 5];     // 2D side elevation view (looking from front)
 
   return (
     <Card className="w-full h-[500px] md:h-[600px] relative">
@@ -254,7 +340,7 @@ export function Visualization3D() {
           size="sm"
           onClick={() => setShowMaterial(!showMaterial)}
         >
-          {showMaterial ? 'Hide Material' : 'Show Material'}
+          Show Material
         </Button>
         <Button
           variant={isFlipped ? 'default' : 'outline'}
@@ -269,47 +355,59 @@ export function Visualization3D() {
         orthographic={!is3DView}
         camera={{
           position: cameraPosition,
-          zoom: is3DView ? 1 : 80,
+          zoom: is3DView ? 50 : 80,
           near: 0.1,
           far: 1000,
         }}
       >
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} />
+        <ambientLight intensity={0.7} />
+        <pointLight position={[10, 10, 10]} intensity={0.5} />
 
         <group rotation={isFlipped ? [Math.PI, 0, 0] : [0, 0, 0]}>
-          <PolygonShape
-            numberOfSides={numberOfSides}
-            diameter={scaledDiameter}
-            height={scaledHeight}
-            sideAngle={sideAngle}
-            thickness={scaledThickness}
-            showMaterial={showMaterial}
-          />
+          {is3DView ? (
+            <PolygonShape3D
+              numberOfSides={numberOfSides}
+              diameter={scaledDiameter}
+              height={scaledHeight}
+              sideAngle={sideAngle}
+              thickness={scaledThickness}
+              showMaterial={showMaterial}
+            />
+          ) : (
+            <SideElevationView
+              diameter={scaledDiameter}
+              height={scaledHeight}
+              sideAngle={sideAngle}
+              thickness={scaledThickness}
+              showMaterial={showMaterial}
+            />
+          )}
         </group>
 
         <Grid
           args={[10, 10]}
           cellSize={0.5}
           cellThickness={0.5}
-          cellColor="#6b7280"
+          cellColor="#374151"
           sectionSize={1}
           sectionThickness={1}
-          sectionColor="#9ca3af"
+          sectionColor="#4b5563"
           fadeDistance={25}
           fadeStrength={1}
           infiniteGrid
+          rotation={[Math.PI / 2, 0, 0]}
+          position={[0, 0, 0]}
         />
 
         <OrbitControls
           enableDamping
           dampingFactor={0.05}
-          minDistance={1}
+          minDistance={2}
           maxDistance={10}
           enableRotate={is3DView}
         />
 
-        <axesHelper args={[1]} />
+        <axesHelper args={[1.5]} />
       </Canvas>
 
       <div className="absolute bottom-4 left-4 text-xs text-muted-foreground bg-background/80 p-2 rounded backdrop-blur-sm">
@@ -317,6 +415,19 @@ export function Visualization3D() {
           ? 'Drag to rotate • Scroll to zoom • Double-click to reset'
           : 'Side Elevation View • Scroll to zoom • Click 3D View to rotate'
         }
+      </div>
+
+      <div className="absolute bottom-4 right-4 text-xs text-muted-foreground bg-background/80 p-2 rounded backdrop-blur-sm">
+        <div className="flex gap-3">
+          <span className="flex items-center gap-1">
+            <div className="w-3 h-0.5 bg-blue-500"></div> Outer
+          </span>
+          {showMaterial && (
+            <span className="flex items-center gap-1">
+              <div className="w-3 h-0.5 bg-emerald-500"></div> Inner
+            </span>
+          )}
+        </div>
       </div>
     </Card>
   );

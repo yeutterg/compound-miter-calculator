@@ -1,6 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
@@ -198,31 +199,27 @@ export function InputPanel() {
         {/* Options Group */}
         <div className="space-y-3 pt-4 border-t">
           <h3 className="text-sm font-medium">Options</h3>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="includeWaste"
+              checked={includeWaste}
+              onCheckedChange={(checked) => setIncludeWaste(checked as boolean)}
+            />
             <Label htmlFor="includeWaste" className="cursor-pointer font-normal">
               Add 10% waste to material estimate
             </Label>
-            <input
-              id="includeWaste"
-              type="checkbox"
-              checked={includeWaste}
-              onChange={(e) => setIncludeWaste(e.target.checked)}
-              className="h-4 w-4 cursor-pointer rounded border-input"
-            />
           </div>
 
           {projectType === 'planter' && (
-            <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="applyDrainage"
+                checked={applyDrainage}
+                onCheckedChange={(checked) => setApplyDrainage(checked as boolean)}
+              />
               <Label htmlFor="applyDrainage" className="cursor-pointer font-normal">
                 Reduce volume by 10% for drainage
               </Label>
-              <input
-                id="applyDrainage"
-                type="checkbox"
-                checked={applyDrainage}
-                onChange={(e) => setApplyDrainage(e.target.checked)}
-                className="h-4 w-4 cursor-pointer rounded border-input"
-              />
             </div>
           )}
         </div>

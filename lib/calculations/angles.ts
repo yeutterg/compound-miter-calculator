@@ -68,9 +68,9 @@ export function calculateAngles(
   );
   const miterGauge = toDegrees(miterGaugeRad);
 
-  // Calculate trim angle
-  // δ = 90° - (interior angle / 2)
-  const trimAngle = 90 - (interiorAngle / 2);
+  // Calculate trim angle (complementary to side angle)
+  // δ = 90° - α (where α is the side angle)
+  const trimAngle = 90 - sideAngle;
 
   return {
     bladeTilt: Number(bladeTilt.toFixed(1)),

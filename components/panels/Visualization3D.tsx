@@ -2,7 +2,8 @@
 
 import React, { useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Line, Text } from '@react-three/drei';
+import { OrbitControls, Grid, Line, Text, Billboard } from '@react-three/drei';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import { useCalculatorStore } from '@/lib/store';
 import { calculateAngles } from '@/lib/calculations/angles';
@@ -21,6 +22,7 @@ interface PolygonShapeProps {
 }
 
 interface SideElevationProps {
+  diameter: number;
   height: number;
   thickness: number;
   sideAngle: number;
@@ -30,6 +32,7 @@ interface SideElevationProps {
   labels: {
     height: string;
     thickness: string;
+    diameter: string;
   };
   textRotation: [number, number, number];
 }
@@ -86,6 +89,7 @@ function buildPlanLoop(sides: number, radius: number) {
 
 // Side elevation / saw reference view
 function SideElevationView({
+  diameter,
   height,
   thickness,
   sideAngle,
@@ -95,154 +99,130 @@ function SideElevationView({
   labels,
   textRotation,
 }: SideElevationProps) {
-  const boardHeight = Math.max(height, 0.01);
-  const boardThickness = Math.max(thickness, 0.01);
+  const wallHeight = Math.max(height, 0.01);
+  const halfWidth = Math.max(diameter / 2, 0.2);
+  const taperAngle = Math.max(0.01, 90 - sideAngle);
+  const taperAngleRad = THREE.MathUtils.degToRad(taperAngle);
+  const horizontalOffset = wallHeight * Math.tan(taperAngleRad);
+  const topHalfWidth = Math.max(halfWidth - horizontalOffset, halfWidth * 0.2);
 
-  const boardShape = useMemo(() => {
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 0);
-    shape.lineTo(0, boardHeight);
-    shape.lineTo(boardThickness, boardHeight);
-    shape.lineTo(boardThickness, 0);
-    shape.closePath();
-    return shape;
-  }, [boardHeight, boardThickness]);
+  const innerOffsetX = thickness * Math.sin(taperAngleRad);
+  const innerOffsetY = thickness * Math.cos(taperAngleRad);
 
-  const heightOffset = boardThickness * 0.6 + 0.3;
-  const thicknessOffset = Math.max(boardHeight * 0.08, 0.3);
+  const outerPoints = useMemo(() => ([
+    new THREE.Vector3(-halfWidth, -wallHeight / 2, 0),
+    new THREE.Vector3(-topHalfWidth, wallHeight / 2, 0),
+    new THREE.Vector3(topHalfWidth, wallHeight / 2, 0),
+    new THREE.Vector3(halfWidth, -wallHeight / 2, 0),
+  ]), [halfWidth, topHalfWidth, wallHeight]);
+
+  const innerPoints = useMemo(() => {
+    if (thickness <= 0) return null;
+    return [
+      new THREE.Vector3(-halfWidth + innerOffsetX, -wallHeight / 2 + innerOffsetY, 0),
+      new THREE.Vector3(-topHalfWidth + innerOffsetX, wallHeight / 2 - innerOffsetY, 0),
+      new THREE.Vector3(topHalfWidth - innerOffsetX, wallHeight / 2 - innerOffsetY, 0),
+      new THREE.Vector3(halfWidth - innerOffsetX, -wallHeight / 2 + innerOffsetY, 0),
+    ];
+  }, [halfWidth, topHalfWidth, wallHeight, innerOffsetX, innerOffsetY, thickness]);
+
+  const dashedHeightX = -halfWidth - Math.max(halfWidth * 0.25, 0.4);
+  const dashedWidthY = -wallHeight / 2 - Math.max(halfWidth * 0.12, 0.35);
+
   const clampedBladeTilt = Math.min(Math.max(bladeTilt, 0.01), 89.9);
-  const clampedSideAngle = Math.min(Math.max(sideAngle, 0.01), 89.9);
   const bladeTiltRad = THREE.MathUtils.degToRad(clampedBladeTilt);
-  const sideAngleRad = THREE.MathUtils.degToRad(clampedSideAngle);
 
-  const bladeGuideLength = Math.min(boardHeight, boardThickness) * 1.5 + 0.15;
-  const bladeOrigin = useMemo(
-    () => new THREE.Vector3(boardThickness, boardHeight, 0),
-    [boardThickness, boardHeight]
-  );
-  const bladeGuideEnd = useMemo(
-    () => new THREE.Vector3(
-      boardThickness - Math.sin(bladeTiltRad) * bladeGuideLength,
-      boardHeight - Math.cos(bladeTiltRad) * bladeGuideLength,
-      0
-    ),
-    [boardThickness, boardHeight, bladeGuideLength, bladeTiltRad]
-  );
+  const bottomLeft = outerPoints[0];
+  const topLeft = outerPoints[1];
+  const topRight = outerPoints[2];
+  const bottomRight = outerPoints[3];
+
+  const bladeOrigin = useMemo(() => bottomRight.clone(), [bottomRight]);
+  const bevelLength = Math.max(Math.min(wallHeight * 0.5, halfWidth * 0.7), 0.25);
+  const bevelEnd = useMemo(() => bladeOrigin.clone().add(new THREE.Vector3(
+    Math.cos(bladeTiltRad) * bevelLength,
+    Math.sin(bladeTiltRad) * bevelLength,
+    0,
+  )), [bladeOrigin, bladeTiltRad, bevelLength]);
 
   const bladeArc = useMemo(() => {
     if (bladeTilt <= 0.01) return null;
-    const radius = Math.min(boardThickness, boardHeight) * 0.35;
+    const radius = Math.max(Math.min(bevelLength * 0.65, wallHeight * 0.35), 0.08);
     return createAngleArc2D(
       bladeOrigin.clone(),
-      Math.max(radius, 0.08),
-      Math.PI / 2,
-      Math.PI / 2 + bladeTiltRad,
+      radius,
+      0,
+      bladeTiltRad,
       0xfacc15
     );
-  }, [bladeOrigin, boardThickness, boardHeight, bladeTilt, bladeTiltRad]);
-
-  const pitchBase = Math.min(boardThickness * 1.6, boardHeight * 0.8);
-  const pitchHeight = Math.tan(sideAngleRad) * pitchBase;
-  const pitchStart = useMemo(
-    () => new THREE.Vector3(boardThickness + 0.4, 0, 0),
-    [boardThickness]
-  );
-  const pitchEnd = useMemo(
-    () => new THREE.Vector3(pitchStart.x + pitchBase, pitchHeight, 0),
-    [pitchStart, pitchBase, pitchHeight]
-  );
-  const pitchBaseEnd = useMemo(
-    () => new THREE.Vector3(pitchStart.x + pitchBase, 0, 0),
-    [pitchStart, pitchBase]
-  );
+  }, [bladeOrigin, bladeTilt, bladeTiltRad, bevelLength, wallHeight]);
 
   const pitchArc = useMemo(() => {
     if (sideAngle <= 0.01) return null;
-    const radius = Math.max(Math.min(pitchBase, pitchHeight) * 0.5, 0.08);
-    return createAngleArc2D(pitchStart.clone(), radius, 0, sideAngleRad, 0x38bdf8);
-  }, [pitchStart, pitchBase, pitchHeight, sideAngle, sideAngleRad]);
+    const radius = Math.max(Math.min(halfWidth * 0.45, wallHeight * 0.35), 0.12);
+    return createAngleArc2D(
+      bottomRight.clone(),
+      radius,
+      0,
+      THREE.MathUtils.degToRad(sideAngle),
+      0x38bdf8
+    );
+  }, [bottomRight, halfWidth, wallHeight, sideAngle]);
 
-  const annotationX = boardThickness + Math.max(pitchBase, boardThickness) + 0.7;
-  const annotationFont = Math.max(boardHeight * 0.065, 0.055);
-  const annotationSpacing = annotationFont * 1.3;
-
-  const verticalColor = '#2563eb';
-  const horizontalColor = '#10b981';
+  const annotationX = halfWidth + Math.max(halfWidth * 0.6, 0.6);
+  const annotationFont = Math.max(wallHeight * 0.08, 0.07);
+  const annotationSpacing = annotationFont * 1.25;
 
   return (
     <group>
-      {showMaterial && (
-        <mesh position={[0, 0, -0.001]}>
-          <shapeGeometry args={[boardShape]} />
-          <meshBasicMaterial
-            color="#2563eb"
-            transparent
-            opacity={0.18}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
+      {/* Outer shell */}
+      <Line points={[bottomLeft, topLeft]} color="#2563eb" lineWidth={3} />
+      <Line points={[topLeft, topRight]} color="#2563eb" lineWidth={2} dashed dashSize={0.05} gapSize={0.04} />
+      <Line points={[topRight, bottomRight]} color="#2563eb" lineWidth={3} />
+      <Line points={[bottomRight, bottomLeft]} color="#2563eb" lineWidth={2} />
+
+      {/* Inner shell */}
+      {showMaterial && innerPoints && (
+        <>
+          <Line points={[innerPoints[0], innerPoints[1]]} color="#10b981" lineWidth={2} />
+          <Line points={[innerPoints[1], innerPoints[2]]} color="#10b981" lineWidth={1.8} />
+          <Line points={[innerPoints[2], innerPoints[3]]} color="#10b981" lineWidth={2} />
+          <Line points={[innerPoints[3], innerPoints[0]]} color="#10b981" lineWidth={1.8} />
+        </>
       )}
-
-      {/* Outer faces */}
-      <Line
-        points={[new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, boardHeight, 0)]}
-        color={verticalColor}
-        lineWidth={3}
-      />
-      <Line
-        points={[
-          new THREE.Vector3(boardThickness, 0, 0),
-          new THREE.Vector3(boardThickness, boardHeight, 0),
-        ]}
-        color={verticalColor}
-        lineWidth={3}
-      />
-
-      {/* Reference baseline */}
-      <Line
-        points={[
-          new THREE.Vector3(-boardThickness * 0.4, 0, 0),
-          new THREE.Vector3(boardThickness * 1.9, 0, 0),
-        ]}
-        color="#475569"
-        lineWidth={1}
-        dashed
-        dashSize={0.05}
-        gapSize={0.04}
-      />
 
       {/* Height dimension */}
       <Line
         points={[
-          new THREE.Vector3(-heightOffset, 0, 0),
-          new THREE.Vector3(-heightOffset, boardHeight, 0),
+          new THREE.Vector3(dashedHeightX, -wallHeight / 2, 0),
+          new THREE.Vector3(dashedHeightX, wallHeight / 2, 0),
         ]}
-        color={verticalColor}
+        color="#475569"
         lineWidth={1}
         dashed
-        dashSize={0.05}
+        dashSize={0.06}
         gapSize={0.05}
       />
       <Line
         points={[
-          new THREE.Vector3(-heightOffset - 0.09, 0, 0),
-          new THREE.Vector3(-heightOffset + 0.09, 0, 0),
+          new THREE.Vector3(dashedHeightX - 0.1, -wallHeight / 2, 0),
+          new THREE.Vector3(dashedHeightX + 0.1, -wallHeight / 2, 0),
         ]}
-        color={verticalColor}
-        lineWidth={1.5}
+        color="#475569"
+        lineWidth={1.3}
       />
       <Line
         points={[
-          new THREE.Vector3(-heightOffset - 0.09, boardHeight, 0),
-          new THREE.Vector3(-heightOffset + 0.09, boardHeight, 0),
+          new THREE.Vector3(dashedHeightX - 0.1, wallHeight / 2, 0),
+          new THREE.Vector3(dashedHeightX + 0.1, wallHeight / 2, 0),
         ]}
-        color={verticalColor}
-        lineWidth={1.5}
+        color="#475569"
+        lineWidth={1.3}
       />
       <Text
-        position={[-heightOffset - 0.12, boardHeight / 2, 0]}
-        fontSize={Math.max(boardHeight * 0.075, 0.07)}
-        color={verticalColor}
+        position={[dashedHeightX - 0.15, 0, 0]}
+        fontSize={annotationFont}
+        color="#e2e8f0"
         anchorX="right"
         anchorY="middle"
         rotation={textRotation}
@@ -250,97 +230,80 @@ function SideElevationView({
         Height {labels.height}
       </Text>
 
-      {/* Thickness dimension */}
+      {/* Width/diameter dimension */}
       <Line
         points={[
-          new THREE.Vector3(0, -thicknessOffset, 0),
-          new THREE.Vector3(boardThickness, -thicknessOffset, 0),
+          new THREE.Vector3(-halfWidth, dashedWidthY, 0),
+          new THREE.Vector3(halfWidth, dashedWidthY, 0),
         ]}
-        color={horizontalColor}
+        color="#94a3b8"
         lineWidth={1}
         dashed
-        dashSize={0.05}
+        dashSize={0.06}
         gapSize={0.05}
       />
       <Line
         points={[
-          new THREE.Vector3(0, -thicknessOffset - 0.08, 0),
-          new THREE.Vector3(0, -thicknessOffset + 0.08, 0),
+          new THREE.Vector3(-halfWidth, dashedWidthY - 0.08, 0),
+          new THREE.Vector3(-halfWidth, dashedWidthY + 0.08, 0),
         ]}
-        color={horizontalColor}
-        lineWidth={1.5}
+        color="#94a3b8"
+        lineWidth={1.1}
       />
       <Line
         points={[
-          new THREE.Vector3(boardThickness, -thicknessOffset - 0.08, 0),
-          new THREE.Vector3(boardThickness, -thicknessOffset + 0.08, 0),
+          new THREE.Vector3(halfWidth, dashedWidthY - 0.08, 0),
+          new THREE.Vector3(halfWidth, dashedWidthY + 0.08, 0),
         ]}
-        color={horizontalColor}
-        lineWidth={1.5}
+        color="#94a3b8"
+        lineWidth={1.1}
       />
       <Text
-        position={[boardThickness / 2, -thicknessOffset - 0.18, 0]}
-        fontSize={Math.max(boardHeight * 0.07, 0.065)}
-        color={horizontalColor}
+        position={[0, dashedWidthY - 0.2, 0]}
+        fontSize={annotationFont}
+        color="#e2e8f0"
         anchorX="center"
         anchorY="top"
         rotation={textRotation}
       >
-        Thickness {labels.thickness}
+        Diameter {labels.diameter}
       </Text>
 
-      {/* Blade tilt guide */}
-      {bladeTilt > 0.01 && (
+      {/* Wall thickness indicator */}
+      {showMaterial && innerPoints && (
         <>
-          <Line
-            points={[bladeOrigin, bladeGuideEnd]}
-            color="#facc15"
-            lineWidth={1.5}
-          />
-          {bladeArc && <primitive object={bladeArc} />}
+          <Line points={[bottomLeft, innerPoints[0]]} color="#10b981" lineWidth={1.2} />
           <Text
-            position={[
-              bladeOrigin.x - Math.cos(bladeTiltRad) * (Math.min(boardThickness, boardHeight) * 0.45),
-              bladeOrigin.y - Math.sin(bladeTiltRad) * (Math.min(boardThickness, boardHeight) * 0.35),
-              0,
-            ]}
-            fontSize={Math.max(boardHeight * 0.065, 0.06)}
-            color="#facc15"
-            anchorX="right"
-            anchorY="bottom"
+            position={[bottomLeft.x + (innerPoints[0].x - bottomLeft.x) / 2, bottomLeft.y - 0.18, 0]}
+            fontSize={annotationFont * 0.8}
+            color="#10b981"
+            anchorX="center"
+            anchorY="top"
             rotation={textRotation}
           >
-            β {bladeTilt.toFixed(1)}°
+            Wall {labels.thickness}
           </Text>
         </>
       )}
 
-      {/* Side pitch reference */}
-      {sideAngle > 0.01 && (
+      {/* Side pitch */}
+      {pitchArc && (
         <>
+          <primitive object={pitchArc} />
+          <Line points={[bottomRight, topRight]} color="#38bdf8" lineWidth={1.2} />
           <Line
-            points={[pitchStart, pitchEnd]}
+            points={[bottomRight, new THREE.Vector3(bottomRight.x + Math.max(halfWidth * 0.6, 0.45), bottomRight.y, 0)]}
             color="#38bdf8"
-            lineWidth={1.5}
-          />
-          <Line
-            points={[pitchStart, pitchBaseEnd]}
-            color="#38bdf8"
-            lineWidth={1}
+            lineWidth={1.2}
             dashed
             dashSize={0.05}
             gapSize={0.05}
           />
-          {pitchArc && <primitive object={pitchArc} />}
           <Text
-            position={[
-              pitchStart.x + Math.max(pitchBase, 0.4) * 0.55,
-              Math.max(pitchHeight, boardHeight * 0.05) + 0.05,
-              0,
-            ]}
-            fontSize={Math.max(boardHeight * 0.06, 0.055)}
+            position={[bottomRight.x + Math.max(halfWidth * 0.4, 0.4), bottomRight.y + Math.max(wallHeight * 0.25, 0.25), 0]}
+            fontSize={annotationFont * 0.85}
             color="#38bdf8"
-            anchorX="center"
+            anchorX="left"
             anchorY="bottom"
             rotation={textRotation}
           >
@@ -349,11 +312,37 @@ function SideElevationView({
         </>
       )}
 
-      {/* Angle summary */}
-      <group position={[annotationX, boardHeight, 0]}>
+      {/* Blade tilt */}
+      {bladeArc && (
+        <>
+          <primitive object={bladeArc} />
+          <Line points={[bladeOrigin, bevelEnd]} color="#facc15" lineWidth={1.2} />
+          <Line
+            points={[bladeOrigin, bladeOrigin.clone().add(new THREE.Vector3(Math.max(halfWidth * 0.55, 0.4), 0, 0))]}
+            color="#facc15"
+            lineWidth={1.2}
+            dashed
+            dashSize={0.05}
+            gapSize={0.05}
+          />
+          <Text
+            position={[bladeOrigin.x + Math.max(halfWidth * 0.45, 0.35), bladeOrigin.y + Math.max(wallHeight * 0.18, 0.18), 0]}
+            fontSize={annotationFont * 0.8}
+            color="#facc15"
+            anchorX="left"
+            anchorY="bottom"
+            rotation={textRotation}
+          >
+            β {bladeTilt.toFixed(1)}°
+          </Text>
+        </>
+      )}
+
+      {/* Summary */}
+      <group position={[annotationX, wallHeight / 2, 0]}>
         <Text
           position={[0, 0, 0]}
-          fontSize={annotationFont * 1.1}
+          fontSize={annotationFont}
           color="#e2e8f0"
           anchorX="left"
           anchorY="top"
@@ -363,7 +352,7 @@ function SideElevationView({
         </Text>
         <Text
           position={[0, -annotationSpacing, 0]}
-          fontSize={annotationFont}
+          fontSize={annotationFont * 0.9}
           color="#facc15"
           anchorX="left"
           anchorY="top"
@@ -373,7 +362,7 @@ function SideElevationView({
         </Text>
         <Text
           position={[0, -annotationSpacing * 2, 0]}
-          fontSize={annotationFont}
+          fontSize={annotationFont * 0.9}
           color="#38bdf8"
           anchorX="left"
           anchorY="top"
@@ -383,7 +372,7 @@ function SideElevationView({
         </Text>
         <Text
           position={[0, -annotationSpacing * 3, 0]}
-          fontSize={annotationFont}
+          fontSize={annotationFont * 0.9}
           color="#c7d2fe"
           anchorX="left"
           anchorY="top"
@@ -619,6 +608,125 @@ function TopPlanView({
   );
 }
 
+interface AngleAnnotations3DProps {
+  diameter: number;
+  height: number;
+  sideAngle: number;
+  bladeTilt: number;
+  miterGauge: number;
+}
+
+function AngleAnnotations3D({
+  diameter,
+  height,
+  sideAngle,
+  bladeTilt,
+  miterGauge,
+}: AngleAnnotations3DProps) {
+  const outerRadius = Math.max(diameter / 2, 0.1);
+  const taperAngle = Math.max(0, 90 - sideAngle);
+  const taperOffset = height * Math.tan(THREE.MathUtils.degToRad(taperAngle));
+  const outerRadiusTop = Math.max(outerRadius - Math.min(taperOffset, outerRadius * 0.45), outerRadius * 0.4);
+  const bottomY = -height / 2;
+  const topY = height / 2;
+
+  const sideAngleRad = THREE.MathUtils.degToRad(sideAngle);
+  const miterGaugeRad = THREE.MathUtils.degToRad(Math.max(miterGauge, 0));
+
+  const alphaArcPoints = useMemo(() => {
+    const radius = Math.max(Math.min(outerRadius * 0.45, height * 0.4), 0.12);
+    const center = new THREE.Vector3(outerRadius, bottomY, 0);
+    const pts: THREE.Vector3[] = [];
+    const steps = 32;
+    for (let i = 0; i <= steps; i++) {
+      const t = sideAngleRad * (i / steps);
+      pts.push(new THREE.Vector3(
+        center.x + Math.cos(t) * radius,
+        center.y + Math.sin(t) * radius,
+        center.z,
+      ));
+    }
+    return { center, points: pts, radius };
+  }, [outerRadius, bottomY, height, sideAngleRad]);
+
+  const gammaArcPoints = useMemo(() => {
+    const radius = Math.max(outerRadius * 0.6, 0.2);
+    const center = new THREE.Vector3(0, bottomY, 0);
+    const pts: THREE.Vector3[] = [];
+    const steps = 32;
+    for (let i = 0; i <= steps; i++) {
+      const t = miterGaugeRad * (i / steps);
+      pts.push(new THREE.Vector3(
+        center.x + Math.cos(t) * radius,
+        center.y,
+        center.z + Math.sin(t) * radius,
+      ));
+    }
+    return { center, points: pts, radius };
+  }, [outerRadius, bottomY, miterGaugeRad]);
+
+  const topSlopePoint = useMemo(() => (
+    new THREE.Vector3(outerRadiusTop, topY, 0)
+  ), [outerRadiusTop, topY]);
+
+  const bottomSlopePoint = useMemo(() => (
+    new THREE.Vector3(outerRadius, bottomY, 0)
+  ), [outerRadius, bottomY]);
+
+  const gammaEnd = useMemo(() => (
+    gammaArcPoints.center.clone().add(new THREE.Vector3(
+      Math.cos(miterGaugeRad) * gammaArcPoints.radius,
+      0,
+      Math.sin(miterGaugeRad) * gammaArcPoints.radius,
+    ))
+  ), [gammaArcPoints, miterGaugeRad]);
+
+  return (
+    <group>
+      {/* Side angle α */}
+      <Line points={alphaArcPoints.points} color="#38bdf8" lineWidth={1.5} />
+      <Line
+        points={[alphaArcPoints.center, alphaArcPoints.center.clone().add(new THREE.Vector3(alphaArcPoints.radius * 1.15, 0, 0))]}
+        color="#38bdf8"
+        lineWidth={1.2}
+        dashed
+        dashSize={0.05}
+        gapSize={0.05}
+      />
+      <Line points={[bottomSlopePoint, topSlopePoint]} color="#38bdf8" lineWidth={1.3} />
+      <Billboard position={alphaArcPoints.center.clone().add(new THREE.Vector3(alphaArcPoints.radius * 0.8, alphaArcPoints.radius * 0.65, 0))} follow={false} lockX lockY lockZ>
+        <Text fontSize={Math.max(height * 0.04, 0.04)} color="#38bdf8" anchorX="center" anchorY="middle">
+          α {sideAngle.toFixed(1)}°
+        </Text>
+      </Billboard>
+
+      {/* Miter gauge γ */}
+      <Line points={gammaArcPoints.points} color="#c7d2fe" lineWidth={1.5} />
+      <Line
+        points={[gammaArcPoints.center, gammaArcPoints.center.clone().add(new THREE.Vector3(gammaArcPoints.radius * 1.1, 0, 0))]}
+        color="#c7d2fe"
+        lineWidth={1.2}
+        dashed
+        dashSize={0.05}
+        gapSize={0.05}
+      />
+      <Line points={[gammaArcPoints.center, gammaEnd]} color="#c7d2fe" lineWidth={1.2} />
+      <Billboard position={gammaArcPoints.center.clone().add(new THREE.Vector3(gammaArcPoints.radius * 0.65, 0, gammaArcPoints.radius * 0.45))} follow={false} lockX lockY lockZ>
+        <Text fontSize={Math.max(height * 0.04, 0.04)} color="#c7d2fe" anchorX="center" anchorY="middle">
+          γ {miterGauge.toFixed(1)}°
+        </Text>
+      </Billboard>
+
+      {/* Blade tilt β label */}
+      <Billboard position={[0, topY + Math.max(height * 0.15, 0.2), 0]} follow={false} lockX lockY lockZ>
+        <Text fontSize={Math.max(height * 0.045, 0.045)} color="#facc15" anchorX="center" anchorY="middle">
+          β Blade Tilt {bladeTilt.toFixed(1)}°
+        </Text>
+      </Billboard>
+    </group>
+  );
+}
+
 // 3D polygon shape component
 function PolygonShape3D({
   numberOfSides,
@@ -726,9 +834,11 @@ export function Visualization3D() {
   } = useCalculatorStore();
 
   const [showMaterial, setShowMaterial] = React.useState(false);
-  const [viewMode, setViewMode] = React.useState<'side' | 'top' | '3d'>('side');
+  const [viewMode, setViewMode] = React.useState<'side' | 'top' | '3d'>('3d');
   const [isHorizontalFlip, setIsHorizontalFlip] = React.useState(false);
   const [isVerticalFlip, setIsVerticalFlip] = React.useState(false);
+  const [canvasKey, setCanvasKey] = React.useState(0);
+  const controlsRef = React.useRef<OrbitControlsImpl | null>(null);
 
   const unitLabel = getUnitLabel(lengthUnit);
   const measurementLabels = useMemo(() => ({
@@ -773,6 +883,17 @@ export function Visualization3D() {
     : viewMode === 'top'
       ? 'Top View • Scroll to zoom • Switch views above'
       : 'Side Elevation View • Scroll to zoom • Switch views above';
+
+  const handleResetView = React.useCallback(() => {
+    setShowMaterial(false);
+    setIsHorizontalFlip(false);
+    setIsVerticalFlip(false);
+    setViewMode('3d');
+    if (controlsRef.current) {
+      controlsRef.current.reset();
+    }
+    setCanvasKey(key => key + 1);
+  }, []);
 
   return (
     <Card className="w-full h-[500px] md:h-[600px] relative">
@@ -828,13 +949,21 @@ export function Visualization3D() {
         >
           Flip Vertical
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleResetView}
+        >
+          Reset View
+        </Button>
       </div>
 
       <Canvas
+        key={`${canvasKey}-${viewMode}`}
         orthographic={viewMode !== '3d'}
         camera={{
           position: cameraPosition,
-          zoom: viewMode === '3d' ? 50 : 80,
+          zoom: viewMode === '3d' ? 50 : 60,
           near: 0.1,
           far: 1000,
         }}
@@ -844,14 +973,23 @@ export function Visualization3D() {
 
         <group rotation={rotation}>
           {viewMode === '3d' ? (
-            <PolygonShape3D
-              numberOfSides={numberOfSides}
-              diameter={scaledDiameter}
-              height={scaledHeight}
-              sideAngle={sideAngle}
-              thickness={scaledThickness}
-              showMaterial={showMaterial}
-            />
+            <>
+              <PolygonShape3D
+                numberOfSides={numberOfSides}
+                diameter={scaledDiameter}
+                height={scaledHeight}
+                sideAngle={sideAngle}
+                thickness={scaledThickness}
+                showMaterial={showMaterial}
+              />
+              <AngleAnnotations3D
+                diameter={scaledDiameter}
+                height={scaledHeight}
+                sideAngle={sideAngle}
+                bladeTilt={angles.bladeTilt}
+                miterGauge={angles.miterGauge}
+              />
+            </>
           ) : viewMode === 'top' ? (
             <TopPlanView
               numberOfSides={numberOfSides}
@@ -866,6 +1004,7 @@ export function Visualization3D() {
             />
           ) : (
             <SideElevationView
+              diameter={scaledDiameter}
               height={scaledHeight}
               sideAngle={sideAngle}
               thickness={scaledThickness}
@@ -893,10 +1032,14 @@ export function Visualization3D() {
         />
 
         <OrbitControls
+          ref={controlsRef}
           enableDamping
           dampingFactor={0.05}
-          minDistance={2}
-          maxDistance={10}
+          minDistance={0.1}
+          maxDistance={120}
+          minZoom={0.05}
+          maxZoom={500}
+          zoomSpeed={0.75}
           enableRotate={viewMode === '3d'}
         />
 

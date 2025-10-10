@@ -135,11 +135,11 @@ export function ResultsPanel() {
           Precise measurements for your compound miter cuts
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 sm:space-y-6">
         {/* Saw Settings Group */}
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-muted-foreground">Saw Settings</h3>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
             <ResultCard
               label="Blade Tilt"
               value={`${formatNumber(angles.bladeTilt, 1)}°`}

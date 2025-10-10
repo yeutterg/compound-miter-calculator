@@ -58,3 +58,23 @@
     color: hsl(var(--foreground));
   }
 }
+
+/* Mobile-friendly improvements */
+@layer utilities {
+  /* Add xs breakpoint for extra small screens */
+  @media (min-width: 480px) {
+    .xs\:grid-cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* Improve touch targets on mobile */
+  @media (max-width: 640px) {
+    button,
+    input[type="button"],
+    input[type="submit"],
+    [role="button"] {
+      min-height: 44px;
+    }
+  }
+}

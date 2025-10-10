@@ -896,9 +896,9 @@ export function Visualization3D() {
   }, []);
 
   return (
-    <Card className="w-full h-[500px] md:h-[600px] relative">
-      <div className="absolute top-4 right-4 z-10 flex flex-wrap items-center justify-end gap-3">
-        <fieldset className="flex gap-1 rounded-md border border-border bg-background/80 p-1 backdrop-blur">
+    <Card className="w-full h-[400px] sm:h-[500px] md:h-[600px] relative">
+      <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-10 flex flex-wrap items-center justify-end gap-1.5 sm:gap-3">
+        <fieldset className="flex gap-0.5 sm:gap-1 rounded-md border border-border bg-background/80 p-0.5 sm:p-1 backdrop-blur">
           <legend className="sr-only">View Mode</legend>
           {([
             { key: 'side', label: 'Side' },
@@ -909,7 +909,7 @@ export function Visualization3D() {
             return (
               <Label
                 key={option.key}
-                className={`cursor-pointer rounded px-2 py-1 text-xs font-medium transition ${
+                className={`cursor-pointer rounded px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium transition ${
                   active
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-background/70 text-muted-foreground hover:bg-muted'
@@ -932,29 +932,36 @@ export function Visualization3D() {
           variant={showMaterial ? 'default' : 'outline'}
           size="sm"
           onClick={() => setShowMaterial(!showMaterial)}
+          className="text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-2 h-auto"
         >
-          Show Material
+          <span className="hidden sm:inline">Show Material</span>
+          <span className="sm:hidden">Material</span>
         </Button>
         <Button
           variant={isHorizontalFlip ? 'default' : 'outline'}
           size="sm"
           onClick={() => setIsHorizontalFlip(!isHorizontalFlip)}
+          className="text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-2 h-auto"
         >
-          Flip Horizontal
+          <span className="hidden sm:inline">Flip Horizontal</span>
+          <span className="sm:hidden">Flip H</span>
         </Button>
         <Button
           variant={isVerticalFlip ? 'default' : 'outline'}
           size="sm"
           onClick={() => setIsVerticalFlip(!isVerticalFlip)}
+          className="text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-2 h-auto"
         >
-          Flip Vertical
+          <span className="hidden sm:inline">Flip Vertical</span>
+          <span className="sm:hidden">Flip V</span>
         </Button>
         <Button
           variant="outline"
           size="sm"
           onClick={handleResetView}
+          className="text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-2 h-auto"
         >
-          Reset View
+          Reset
         </Button>
       </div>
 
@@ -1046,12 +1053,12 @@ export function Visualization3D() {
         <axesHelper args={[1.5]} />
       </Canvas>
 
-      <div className="absolute bottom-4 left-4 text-xs text-muted-foreground bg-background/80 p-2 rounded backdrop-blur-sm">
+      <div className="absolute bottom-2 left-2 sm:bottom-4 sm:left-4 text-[10px] sm:text-xs text-muted-foreground bg-background/80 p-1.5 sm:p-2 rounded backdrop-blur-sm">
         {viewHelperMessage}
       </div>
 
-      <div className="absolute bottom-4 right-4 text-xs text-muted-foreground bg-background/80 p-2 rounded backdrop-blur-sm">
-        <div className="flex flex-wrap gap-3">
+      <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 text-[10px] sm:text-xs text-muted-foreground bg-background/80 p-1.5 sm:p-2 rounded backdrop-blur-sm">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <span className="flex items-center gap-1">
             <div className="w-3 h-0.5 bg-blue-500"></div> Vertical reference
           </span>

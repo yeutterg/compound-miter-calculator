@@ -9,13 +9,13 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight">
                 Compound Miter Calculator
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 Precise angle calculations for woodworking projects
               </p>
             </div>
@@ -24,16 +24,16 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Two Column Layout: ALL Inputs Left, ALL Outputs Right */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Left Column - ALL INPUTS */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <InputPanel />
           </div>
 
           {/* Right Column - ALL OUTPUTS */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <ResultsPanel />
           </div>
         </div>
@@ -44,7 +44,7 @@ export default function Home() {
         </div>
 
         {/* Footer Info */}
-        <div className="text-center text-sm text-muted-foreground border-t pt-6">
+        <div className="text-center text-xs sm:text-sm text-muted-foreground border-t pt-4 sm:pt-6">
           <p>
             Built with Next.js, React Three Fiber, and shadcn/ui
           </p>

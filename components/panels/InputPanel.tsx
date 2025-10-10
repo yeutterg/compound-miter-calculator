@@ -56,11 +56,11 @@ export function InputPanel() {
           Configure your project dimensions and preferences
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 sm:space-y-6">
         {/* Project Settings Group */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <h3 className="text-sm font-medium">Project Settings</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
               <Label htmlFor="projectType">Project Type</Label>
               <Select value={projectType} onValueChange={(value) => setProjectType(value as typeof projectType)}>
@@ -92,7 +92,7 @@ export function InputPanel() {
         </div>
 
         {/* Geometry Group */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <h3 className="text-sm font-medium">Geometry</h3>
 
           {/* Number of Sides */}
@@ -132,9 +132,9 @@ export function InputPanel() {
         </div>
 
         {/* Dimensions Group */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <h3 className="text-sm font-medium">Dimensions ({unitLabel})</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
               <Label htmlFor="height">Height</Label>
               <Input
@@ -163,7 +163,7 @@ export function InputPanel() {
         </div>
 
         {/* Material Group */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <h3 className="text-sm font-medium">Material</h3>
           <div className="space-y-2">
             <Label htmlFor="thickness">Thickness ({unitLabel})</Label>

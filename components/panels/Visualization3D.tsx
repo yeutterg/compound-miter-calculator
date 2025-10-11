@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { Canvas } from '@react-three/fiber';
+import React, { useMemo, useEffect } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, Line, Text, Billboard } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
@@ -11,6 +11,20 @@ import { toMillimeters, formatNumber, getUnitLabel } from '@/lib/utils/unitConve
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+
+// Camera controller component to update zoom dynamically
+function CameraController({ zoom }: { zoom: number }) {
+  const { camera } = useThree();
+
+  useEffect(() => {
+    if (camera) {
+      camera.zoom = zoom;
+      camera.updateProjectionMatrix();
+    }
+  }, [zoom, camera]);
+
+  return null;
+}
 
 interface PolygonShapeProps {
   numberOfSides: number;
@@ -838,7 +852,7 @@ export function Visualization3D() {
   const [isHorizontalFlip, setIsHorizontalFlip] = React.useState(false);
   const [isVerticalFlip, setIsVerticalFlip] = React.useState(false);
   const [canvasKey, setCanvasKey] = React.useState(0);
-  const [zoom, setZoom] = React.useState(60);
+  const [zoom, setZoom] = React.useState(100);
   const controlsRef = React.useRef<OrbitControlsImpl | null>(null);
 
   const unitLabel = getUnitLabel(lengthUnit);
@@ -893,7 +907,7 @@ export function Visualization3D() {
     setIsHorizontalFlip(false);
     setIsVerticalFlip(false);
     setViewMode('3d');
-    setZoom(60);
+    setZoom(100);
     if (controlsRef.current) {
       controlsRef.current.reset();
     }
@@ -1001,6 +1015,7 @@ export function Visualization3D() {
           far: 1000,
         }}
       >
+        <CameraController zoom={cameraZoom} />
         <ambientLight intensity={0.7} />
         <pointLight position={[10, 10, 10]} intensity={0.5} />
 

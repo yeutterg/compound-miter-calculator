@@ -69,11 +69,17 @@ export const useCalculatorStore = create<CalculatorState>()(
     {
       name: 'compound-miter-calculator',
       partialize: (state) => ({
-        // Only persist user preferences, not input values
+        // Persist both user preferences and input values
+        numberOfSides: state.numberOfSides,
+        sideAngle: state.sideAngle,
+        height: state.height,
+        diameter: state.diameter,
+        thickness: state.thickness,
         unitSystem: state.unitSystem,
         lengthUnit: state.lengthUnit,
         projectType: state.projectType,
         includeWaste: state.includeWaste,
+        applyDrainage: state.applyDrainage,
       }),
     }
   )

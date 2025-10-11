@@ -971,7 +971,7 @@ export function Visualization3D() {
       </div>
 
       {/* Zoom Control */}
-      <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-2 bg-background/80 p-2 rounded backdrop-blur-sm">
+      <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-2 bg-background/80 p-3 rounded backdrop-blur-sm">
         <Label className="text-xs font-medium">Zoom</Label>
         <input
           type="range"
@@ -981,10 +981,11 @@ export function Visualization3D() {
           onChange={(e) => setZoom(Number(e.target.value))}
           className="slider-vertical"
           style={{
-            width: '24px',
-            height: '200px',
+            width: '32px',
+            height: '300px',
             transform: 'rotate(270deg)',
-            transformOrigin: 'center'
+            transformOrigin: 'center',
+            cursor: 'pointer'
           } as React.CSSProperties}
         />
         <span className="text-xs text-muted-foreground font-medium">{Math.round(zoom)}%</span>

@@ -72,7 +72,6 @@ export function calculateAngles(
     Math.cos(sideAngleRad) * Math.tan(miterAngleRad)
   );
   const miterGaugeComplement = toDegrees(miterGaugeComplementRad);
-  const miterGauge = 90 - miterGaugeComplement;
 
   // Calculate trim angle (same as side angle for top/bottom cuts)
   const trimAngle = sideAngle;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Copy, Check, Info, ArrowLeftRight } from 'lucide-react';
+import { Copy, Check, Info, ArrowUpDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -261,17 +261,25 @@ function AngleCard({
   textColor,
 }: AngleCardProps) {
   const [showComplement, setShowComplement] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedMain, setCopiedMain] = useState(false);
+  const [copiedComplement, setCopiedComplement] = useState(false);
 
   const displayValue = showComplement ? complementValue : primaryValue;
   const displayLabel = showComplement ? `${symbol} Complement` : `${symbol} ${primaryLabel}`;
-  const displayDescription = showComplement ? complementDescription : primaryDescription;
+  const displayDescription = showComplement ? `Complement ${complementDescription}` : primaryDescription;
   const displayTooltip = showComplement ? complementTooltip : primaryTooltip;
 
-  const copyToClipboard = () => {
+  const copyMainToClipboard = () => {
     navigator.clipboard.writeText(displayValue.toString());
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedMain(true);
+    setTimeout(() => setCopiedMain(false), 2000);
+  };
+
+  const copyComplementToClipboard = () => {
+    const complementVal = showComplement ? primaryValue : complementValue;
+    navigator.clipboard.writeText(complementVal.toString());
+    setCopiedComplement(true);
+    setTimeout(() => setCopiedComplement(false), 2000);
   };
 
   return (
@@ -301,7 +309,7 @@ function AngleCard({
             className="h-7 px-2"
             title="Toggle complement angle"
           >
-            <ArrowLeftRight className="h-3.5 w-3.5" />
+            <ArrowUpDown className="h-3.5 w-3.5" />
           </Button>
         </div>
 
@@ -316,23 +324,34 @@ function AngleCard({
           <Button
             variant="ghost"
             size="icon"
-            onClick={copyToClipboard}
+            onClick={copyMainToClipboard}
             className="h-9 w-9"
             title="Copy to clipboard"
           >
-            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {copiedMain ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           </Button>
         </div>
 
         {/* Complement preview */}
         <div className="pt-3 border-t border-border/30">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">
-              {showComplement ? primaryDescription : complementDescription}:
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              {showComplement ? primaryDescription : `Complement ${complementDescription}`}:
             </span>
-            <span className="font-medium">
-              {formatNumber(showComplement ? primaryValue : complementValue, 1)}°
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">
+                {formatNumber(showComplement ? primaryValue : complementValue, 1)}°
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={copyComplementToClipboard}
+                className="h-6 w-6"
+                title="Copy complement to clipboard"
+              >
+                {copiedComplement ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

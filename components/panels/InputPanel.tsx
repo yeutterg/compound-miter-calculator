@@ -5,7 +5,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -57,69 +59,160 @@ export function InputPanel() {
         <div className="space-y-3 sm:space-y-4">
           <h3 className="text-sm font-medium">Geometry</h3>
 
-          {/* Number of Sides */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-4">
-              <Label htmlFor="numberOfSides">Number of Sides</Label>
-              <Input
-                id="numberOfSidesInput"
-                type="number"
+          {/* Side-by-side controls for Number of Sides and Side Angle */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Number of Sides Card */}
+            <div className="relative p-6 rounded-lg border bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border-border/50">
+              <div className="space-y-4">
+                <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                  Number of Sides
+                </div>
+
+                {/* Large number display with controls */}
+                <div className="flex items-center justify-between">
+                  <div className="text-5xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+                    {numberOfSides}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setNumberOfSides(Math.min(60, numberOfSides + 1))}
+                      disabled={numberOfSides >= 60}
+                      className="h-9 w-9"
+                      title="Increment"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setNumberOfSides(Math.max(3, numberOfSides - 1))}
+                      disabled={numberOfSides <= 3}
+                      className="h-9 w-9"
+                      title="Decrement"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Input field */}
+                <div className="pt-3 border-t border-border/30">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="numberOfSidesInput"
+                      type="number"
+                      min={3}
+                      max={60}
+                      step={1}
+                      value={numberOfSides}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 3;
+                        setNumberOfSides(Math.max(3, Math.min(60, val)));
+                      }}
+                      className="flex-1 text-center"
+                    />
+                    <span className="text-xs text-muted-foreground">Range: 3-60</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Side Angle Card */}
+            <div className="relative p-6 rounded-lg border bg-gradient-to-br from-violet-500/20 to-purple-500/20 border-border/50">
+              <div className="space-y-4">
+                <div className="text-sm font-semibold text-violet-600 dark:text-violet-400">
+                  Side Angle
+                </div>
+
+                {/* Large angle display with controls */}
+                <div className="flex items-center justify-between">
+                  <div className="text-5xl font-bold tracking-tight text-violet-600 dark:text-violet-400">
+                    {sideAngle}°
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSideAngle(Math.min(90, sideAngle + 1))}
+                      disabled={sideAngle >= 90}
+                      className="h-9 w-9"
+                      title="Increment"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSideAngle(Math.max(1, sideAngle - 1))}
+                      disabled={sideAngle <= 1}
+                      className="h-9 w-9"
+                      title="Decrement"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Input field */}
+                <div className="pt-3 border-t border-border/30">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="sideAngleInput"
+                      type="number"
+                      min={1}
+                      max={90}
+                      step={1}
+                      value={sideAngle}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 1;
+                        setSideAngle(Math.max(1, Math.min(90, val)));
+                      }}
+                      className="flex-1 text-center"
+                    />
+                    <span className="text-xs text-muted-foreground">Range: 1-90°</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sliders below the cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="numberOfSides" className="text-xs text-muted-foreground">
+                Number of Sides Slider
+              </Label>
+              <Slider
+                id="numberOfSides"
                 min={3}
                 max={60}
                 step={1}
-                value={numberOfSides}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 3;
-                  setNumberOfSides(Math.max(3, Math.min(60, val)));
-                }}
-                className="w-20 text-right"
+                value={[numberOfSides]}
+                onValueChange={([value]) => setNumberOfSides(value)}
+                className="relative"
               />
             </div>
-            <Slider
-              id="numberOfSides"
-              min={3}
-              max={60}
-              step={1}
-              value={[numberOfSides]}
-              onValueChange={([value]) => setNumberOfSides(value)}
-              className="relative"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="sideAngle" className="text-xs text-muted-foreground">
+                Side Angle Slider
+              </Label>
+              <Slider
+                id="sideAngle"
+                min={1}
+                max={90}
+                step={1}
+                value={[sideAngle]}
+                onValueChange={([value]) => setSideAngle(value)}
+                className="relative"
+              />
+            </div>
           </div>
 
-          {/* Side Angle */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-4">
-              <Label htmlFor="sideAngle">Side Angle</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="sideAngleInput"
-                  type="number"
-                  min={1}
-                  max={90}
-                  step={1}
-                  value={sideAngle}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value) || 1;
-                    setSideAngle(Math.max(1, Math.min(90, val)));
-                  }}
-                  className="w-20 text-right"
-                />
-                <span className="text-sm font-medium">°</span>
-              </div>
-            </div>
-            <Slider
-              id="sideAngle"
-              min={1}
-              max={90}
-              step={1}
-              value={[sideAngle]}
-              onValueChange={([value]) => setSideAngle(value)}
-              className="relative"
-            />
-            <p className="text-xs text-muted-foreground">
-              90° = vertical sides, 45° = moderate slope, 1° = nearly horizontal
-            </p>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            90° = vertical sides, 45° = moderate slope, 1° = nearly horizontal
+          </p>
         </div>
 
         {/* Dimensions Group */}

@@ -285,7 +285,7 @@ function AngleCard({
   return (
     <div className={`relative p-6 rounded-lg border bg-gradient-to-br ${color} border-border/50`}>
       <div className="space-y-4">
-        {/* Header with toggle */}
+        {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <div className={`text-sm font-semibold ${textColor}`}>{displayLabel}</div>
@@ -302,15 +302,6 @@ function AngleCard({
               </TooltipProvider>
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowComplement(!showComplement)}
-            className="h-7 px-2"
-            title="Toggle complement angle"
-          >
-            <ArrowUpDown className="h-3.5 w-3.5" />
-          </Button>
         </div>
 
         {/* Large angle display */}
@@ -332,8 +323,24 @@ function AngleCard({
           </Button>
         </div>
 
+        {/* Divider with toggle button */}
+        <div className="relative pt-3">
+          <div className="absolute inset-x-0 top-0 flex items-center justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowComplement(!showComplement)}
+              className="h-6 px-2 bg-background border border-border/50 relative z-10"
+              title="Toggle complement angle"
+            >
+              <ArrowUpDown className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <div className="border-t border-border/30" />
+        </div>
+
         {/* Complement preview */}
-        <div className="pt-3 border-t border-border/30">
+        <div className="pt-1">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">
               {showComplement ? primaryDescription : `Complement ${complementDescription}`}:

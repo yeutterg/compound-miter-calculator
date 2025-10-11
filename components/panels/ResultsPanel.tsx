@@ -146,7 +146,7 @@ export function ResultsPanel() {
               primaryValue={angles.miterGauge}
               complementValue={angles.miterGaugeComplement}
               primaryDescription="Miter setting"
-              complementDescription="From square"
+              complementDescription="from square"
               primaryTooltip="The angle to set your miter gauge for the horizontal cut angle"
               complementTooltip="The miter gauge angle measured from 90° (square). Alternative reference."
               color="from-blue-500/20 to-indigo-500/20"
@@ -158,7 +158,7 @@ export function ResultsPanel() {
               primaryValue={angles.bladeTilt}
               complementValue={angles.bladeTiltComplement}
               primaryDescription="Bevel angle"
-              complementDescription="From vertical"
+              complementDescription="from vertical"
               primaryTooltip="The angle to tilt your saw blade from horizontal (0°) for the bevel cut"
               complementTooltip="The blade tilt measured from vertical (90°). Some saws use this reference."
               color="from-amber-500/20 to-orange-500/20"

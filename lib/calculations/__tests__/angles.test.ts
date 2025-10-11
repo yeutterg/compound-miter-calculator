@@ -24,11 +24,11 @@ describe('Compound Miter Angle Calculations', () => {
 
       // For 3 sides: miter angle = 60°
       // β = arcsin(sin(60°) × sin(45°)) ≈ 37.76°
-      // γ = arctan(tan(60°) / cos(45°)) ≈ 67.79°
+      // γ = 90° - arctan(cos(45°) × tan(60°)) ≈ 39.23°
       expect(result.bladeTilt).toBeCloseTo(37.76, 1);
       expect(result.bladeTiltComplement).toBeCloseTo(52.24, 1); // 90 - 37.76
-      expect(result.miterGauge).toBeCloseTo(67.79, 1);
-      expect(result.miterGaugeComplement).toBeCloseTo(22.21, 1); // 90 - 67.79
+      expect(result.miterGauge).toBeCloseTo(39.23, 1);
+      expect(result.miterGaugeComplement).toBeCloseTo(50.77, 1); // 90 - 39.23
       expect(result.trimAngle).toBe(45);
       expect(result.interiorAngle).toBe(60);
       expect(result.miterAngle).toBe(60);
@@ -51,10 +51,10 @@ describe('Compound Miter Angle Calculations', () => {
       const result = calculateAngles(8, 60);
 
       // For 8 sides: miter angle = 22.5°
-      // β = arcsin(sin(22.5°) × sin(60°)) ≈ 19.36°
-      // γ = arctan(tan(22.5°) / cos(60°)) ≈ 39.6° (calculated value)
-      expect(result.bladeTilt).toBeCloseTo(19.36, 1);
-      expect(result.miterGauge).toBeCloseTo(39.6, 1);
+      // β = arcsin(sin(22.5°) × sin(60°)) ≈ 19.35°
+      // γ = 90° - arctan(cos(60°) × tan(22.5°)) ≈ 78.30°
+      expect(result.bladeTilt).toBeCloseTo(19.35, 1);
+      expect(result.miterGauge).toBeCloseTo(78.30, 1);
       expect(result.trimAngle).toBe(60); // Same as side angle
       expect(result.interiorAngle).toBe(135);
       expect(result.miterAngle).toBe(22.5);

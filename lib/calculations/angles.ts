@@ -65,12 +65,14 @@ export function calculateAngles(
   const bladeTilt = toDegrees(bladeTiltRad);
 
   // Calculate miter gauge angle
-  // γ = arctan(tan(miter angle) / cos(α))
+  // The complement formula: γ_complement = arctan(cos(α) × tan(M))
+  // Then: γ = 90° - γ_complement
   // This is the CORRECT formula verified against compound miter spreadsheets
-  const miterGaugeRad = Math.atan(
-    Math.tan(miterAngleRad) / Math.cos(sideAngleRad)
+  const miterGaugeComplementRad = Math.atan(
+    Math.cos(sideAngleRad) * Math.tan(miterAngleRad)
   );
-  const miterGauge = toDegrees(miterGaugeRad);
+  const miterGaugeComplement = toDegrees(miterGaugeComplementRad);
+  const miterGauge = 90 - miterGaugeComplement;
 
   // Calculate trim angle (same as side angle for top/bottom cuts)
   const trimAngle = sideAngle;
@@ -79,15 +81,18 @@ export function calculateAngles(
   const bladeTiltRounded = Number(bladeTilt.toFixed(1));
   const miterGaugeRounded = Number(miterGauge.toFixed(1));
 
-  // Calculate complements from rounded values to ensure they sum to exactly 90°
+  // Calculate blade tilt complement from rounded value to ensure they sum to exactly 90°
   const bladeTiltComplement = Number((90 - bladeTiltRounded).toFixed(1));
-  const miterGaugeComplement = Number((90 - miterGaugeRounded).toFixed(1));
+
+  // For miter gauge, we calculated the complement first, so round it and recalculate the primary
+  const miterGaugeComplementRounded = Number(miterGaugeComplement.toFixed(1));
+  const miterGaugeFinal = Number((90 - miterGaugeComplementRounded).toFixed(1));
 
   return {
     bladeTilt: bladeTiltRounded,
     bladeTiltComplement: bladeTiltComplement,
-    miterGauge: miterGaugeRounded,
-    miterGaugeComplement: miterGaugeComplement,
+    miterGauge: miterGaugeFinal,
+    miterGaugeComplement: miterGaugeComplementRounded,
     trimAngle: Number(trimAngle.toFixed(1)),
     interiorAngle: Number(interiorAngle.toFixed(1)),
     miterAngle: Number(miterAngle.toFixed(1)),

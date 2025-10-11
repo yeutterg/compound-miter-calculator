@@ -135,7 +135,7 @@ export function InputPanel() {
 
                 {/* Large input field with controls */}
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex-1 flex items-center justify-center">
+                  <div className="flex-1 flex items-center justify-center gap-0">
                     <Input
                       id="sideAngleInput"
                       type="number"
@@ -147,9 +147,9 @@ export function InputPanel() {
                         const val = parseInt(e.target.value) || 1;
                         setSideAngle(Math.max(1, Math.min(90, val)));
                       }}
-                      className="!text-5xl font-bold tracking-tight text-center h-20 text-violet-600 dark:text-violet-400 bg-transparent border-none shadow-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-0 focus-visible:bg-violet-50 dark:focus-visible:bg-violet-950/20 rounded-md transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-32"
+                      className="!text-5xl font-bold tracking-tight text-center h-20 text-violet-600 dark:text-violet-400 bg-transparent border-none shadow-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-0 focus-visible:bg-violet-50 dark:focus-visible:bg-violet-950/20 rounded-md transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-auto px-2"
                     />
-                    <span className="text-5xl font-bold tracking-tight text-violet-600 dark:text-violet-400">°</span>
+                    <span className="text-5xl font-bold tracking-tight text-violet-600 dark:text-violet-400 -ml-1">°</span>
                   </div>
                   <div className="flex flex-col gap-1">
                     <Button

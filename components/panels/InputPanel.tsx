@@ -107,22 +107,21 @@ export function InputPanel() {
                   </div>
                 </div>
 
-                {/* Slider */}
-                <div className="space-y-2">
-                  <Slider
-                    id="numberOfSides"
-                    min={3}
-                    max={60}
-                    step={1}
-                    value={[numberOfSides]}
-                    onValueChange={([value]) => setNumberOfSides(value)}
-                    className="relative"
-                  />
-                </div>
-
-                {/* Range info */}
+                {/* Slider with min/max labels */}
                 <div className="pt-3 border-t border-border/30">
-                  <span className="text-xs text-muted-foreground">Range: 3-60</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground font-medium">3</span>
+                    <Slider
+                      id="numberOfSides"
+                      min={3}
+                      max={60}
+                      step={1}
+                      value={[numberOfSides]}
+                      onValueChange={([value]) => setNumberOfSides(value)}
+                      className="flex-1"
+                    />
+                    <span className="text-xs text-muted-foreground font-medium">60</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -176,22 +175,21 @@ export function InputPanel() {
                   </div>
                 </div>
 
-                {/* Slider */}
-                <div className="space-y-2">
-                  <Slider
-                    id="sideAngle"
-                    min={1}
-                    max={90}
-                    step={1}
-                    value={[sideAngle]}
-                    onValueChange={([value]) => setSideAngle(value)}
-                    className="relative"
-                  />
-                </div>
-
-                {/* Range info */}
+                {/* Slider with min/max labels */}
                 <div className="pt-3 border-t border-border/30">
-                  <span className="text-xs text-muted-foreground">Range: 1-90°</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground font-medium">1°</span>
+                    <Slider
+                      id="sideAngle"
+                      min={1}
+                      max={90}
+                      step={1}
+                      value={[sideAngle]}
+                      onValueChange={([value]) => setSideAngle(value)}
+                      className="flex-1"
+                    />
+                    <span className="text-xs text-muted-foreground font-medium">90°</span>
+                  </div>
                 </div>
               </div>
             </div>

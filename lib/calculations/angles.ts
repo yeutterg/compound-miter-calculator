@@ -17,11 +17,13 @@ function toDegrees(radians: number): number {
 }
 
 export interface AngleResults {
-  bladeTilt: number;      // β - Saw blade tilt angle
-  miterGauge: number;     // γ - Miter gauge angle
-  trimAngle: number;      // δ - Trim angle
-  interiorAngle: number;  // Interior angle of polygon
-  miterAngle: number;     // Miter angle for joining pieces
+  bladeTilt: number;             // β - Saw blade tilt angle (bevel angle)
+  bladeTiltComplement: number;   // 90° - β - Blade tilt complement
+  miterGauge: number;            // γ - Miter gauge angle
+  miterGaugeComplement: number;  // 90° - γ - Miter gauge complement
+  trimAngle: number;             // δ - Trim angle (same as side angle for reference)
+  interiorAngle: number;         // Interior angle of polygon
+  miterAngle: number;            // Miter angle for joining pieces
 }
 
 /**
@@ -55,26 +57,37 @@ export function calculateAngles(
   const miterAngleRad = toRadians(miterAngle);
 
   // Calculate blade tilt angle (bevel)
-  // β = arctan(tan(α) × sin(miter angle))
-  const bladeTiltRad = Math.atan(
-    Math.tan(sideAngleRad) * Math.sin(miterAngleRad)
+  // β = arcsin(sin(miter angle) × sin(α))
+  // This is the CORRECT formula verified against compound miter spreadsheets
+  const bladeTiltRad = Math.asin(
+    Math.sin(miterAngleRad) * Math.sin(sideAngleRad)
   );
   const bladeTilt = toDegrees(bladeTiltRad);
 
   // Calculate miter gauge angle
-  // γ = arctan(cos(α) × tan(miter angle))
+  // γ = arctan(tan(miter angle) / cos(α))
+  // This is the CORRECT formula verified against compound miter spreadsheets
   const miterGaugeRad = Math.atan(
-    Math.cos(sideAngleRad) * Math.tan(miterAngleRad)
+    Math.tan(miterAngleRad) / Math.cos(sideAngleRad)
   );
   const miterGauge = toDegrees(miterGaugeRad);
 
-  // Calculate trim angle (complementary to side angle)
-  // δ = 90° - α (where α is the side angle)
-  const trimAngle = 90 - sideAngle;
+  // Calculate trim angle (same as side angle for top/bottom cuts)
+  const trimAngle = sideAngle;
+
+  // Round the primary angles first
+  const bladeTiltRounded = Number(bladeTilt.toFixed(1));
+  const miterGaugeRounded = Number(miterGauge.toFixed(1));
+
+  // Calculate complements from rounded values to ensure they sum to exactly 90°
+  const bladeTiltComplement = Number((90 - bladeTiltRounded).toFixed(1));
+  const miterGaugeComplement = Number((90 - miterGaugeRounded).toFixed(1));
 
   return {
-    bladeTilt: Number(bladeTilt.toFixed(1)),
-    miterGauge: Number(miterGauge.toFixed(1)),
+    bladeTilt: bladeTiltRounded,
+    bladeTiltComplement: bladeTiltComplement,
+    miterGauge: miterGaugeRounded,
+    miterGaugeComplement: miterGaugeComplement,
     trimAngle: Number(trimAngle.toFixed(1)),
     interiorAngle: Number(interiorAngle.toFixed(1)),
     miterAngle: Number(miterAngle.toFixed(1)),

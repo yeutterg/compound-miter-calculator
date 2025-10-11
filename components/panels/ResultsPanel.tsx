@@ -1,9 +1,15 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, Info } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useCalculatorStore } from '@/lib/store';
 import { calculateAngles, calculateStockWidth, calculateDistanceAcrossFlats, hasParallelSides } from '@/lib/calculations/angles';
 import { calculateInteriorVolume, getVolumeContext, applyDrainageReduction } from '@/lib/calculations/volume';
@@ -141,16 +147,32 @@ export function ResultsPanel() {
           <h3 className="text-sm font-medium text-muted-foreground">Saw Settings</h3>
           <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
             <ResultCard
-              label="Blade Tilt"
+              label="β Blade Tilt"
               value={`${formatNumber(angles.bladeTilt, 1)}°`}
               description="Bevel angle"
+              tooltip="The angle to tilt your saw blade from horizontal (0°) for the bevel cut"
               copyValue={angles.bladeTilt.toString()}
             />
             <ResultCard
-              label="Miter Gauge"
+              label="β Complement"
+              value={`${formatNumber(angles.bladeTiltComplement, 1)}°`}
+              description="From vertical"
+              tooltip="The blade tilt measured from vertical (90°). Some saws use this reference."
+              copyValue={angles.bladeTiltComplement.toString()}
+            />
+            <ResultCard
+              label="γ Miter Gauge"
               value={`${formatNumber(angles.miterGauge, 1)}°`}
               description="Miter setting"
+              tooltip="The angle to set your miter gauge for the horizontal cut angle"
               copyValue={angles.miterGauge.toString()}
+            />
+            <ResultCard
+              label="γ Complement"
+              value={`${formatNumber(angles.miterGaugeComplement, 1)}°`}
+              description="From square"
+              tooltip="The miter gauge angle measured from 90° (square). Alternative reference."
+              copyValue={angles.miterGaugeComplement.toString()}
             />
           </div>
         </div>
@@ -163,12 +185,14 @@ export function ResultsPanel() {
               label="Stock Width"
               value={`${formatNumber(stockWidth, 2)} ${unitLabel}`}
               description="Minimum material width"
+              tooltip="The minimum width of stock material needed for each side piece"
               copyValue={stockWidth.toString()}
             />
             <ResultCard
-              label="Trim Angle"
+              label="α Top/Bottom Trim"
               value={`${formatNumber(angles.trimAngle, 1)}°`}
-              description="Fine-tuning angle"
+              description="End cut angle"
+              tooltip="The angle to trim the top and/or bottom edges (same as your side angle α)"
               copyValue={angles.trimAngle.toString()}
             />
           </div>
@@ -182,6 +206,7 @@ export function ResultsPanel() {
               label="Distance Across Flats"
               value={`${formatNumber(distanceAcrossFlatsResult, 2)} ${unitLabel}`}
               description="Narrowest width (outer)"
+              tooltip="The narrowest outer dimension measured across parallel flat sides"
               copyValue={distanceAcrossFlatsResult.toString()}
               highlight
             />
@@ -195,6 +220,7 @@ export function ResultsPanel() {
               label="Interior Volume"
               value={`${formatNumber(volumeResult.value, 1)} ${volumeResult.label}`}
               description={volumeResult.context}
+              tooltip="The calculated interior volume accounting for wall thickness and side angle"
               copyValue={volumeResult.value.toString()}
               highlight
             />
@@ -208,6 +234,7 @@ export function ResultsPanel() {
               label={materialResult.label}
               value={`${formatNumber(materialResult.value, materialResult.unit === 'm³' ? 4 : 2)} ${materialResult.unit}`}
               description={includeWaste ? 'Includes 10% waste' : 'Material required'}
+              tooltip={`Total ${materialResult.unit === 'm³' ? 'cubic meters' : 'board feet'} of material needed for all ${numberOfSides} pieces`}
               copyValue={materialResult.value.toString()}
               highlight
             />
@@ -223,10 +250,11 @@ interface ResultCardProps {
   value: string;
   description: string;
   copyValue: string;
+  tooltip?: string;
   highlight?: boolean;
 }
 
-function ResultCard({ label, value, description, copyValue, highlight }: ResultCardProps) {
+function ResultCard({ label, value, description, copyValue, tooltip, highlight }: ResultCardProps) {
   const [copied, setCopied] = useState(false);
 
   const copyToClipboard = () => {
@@ -243,7 +271,21 @@ function ResultCard({ label, value, description, copyValue, highlight }: ResultC
     }`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium text-muted-foreground mb-1">{label}</div>
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="text-xs font-medium text-muted-foreground">{label}</div>
+            {tooltip && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 text-muted-foreground/60 hover:text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs">
+                    <p className="text-xs">{tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
           <div className="text-2xl font-bold tracking-tight">{value}</div>
           <div className="text-xs text-muted-foreground mt-1">{description}</div>
         </div>

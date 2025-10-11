@@ -79,7 +79,6 @@ export function calculateAngles(
 
   // Round the primary angles first
   const bladeTiltRounded = Number(bladeTilt.toFixed(1));
-  const miterGaugeRounded = Number(miterGauge.toFixed(1));
 
   // Calculate blade tilt complement from rounded value to ensure they sum to exactly 90°
   const bladeTiltComplement = Number((90 - bladeTiltRounded).toFixed(1));

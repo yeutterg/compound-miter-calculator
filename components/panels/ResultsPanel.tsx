@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
-import { Copy, Check, Info } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Copy, Check, Info, ArrowLeftRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useCalculatorStore } from '@/lib/store';
 import { calculateAngles, calculateStockWidth, calculateDistanceAcrossFlats, hasParallelSides } from '@/lib/calculations/angles';
-import { calculateInteriorVolume, getVolumeContext, applyDrainageReduction } from '@/lib/calculations/volume';
+import { calculateInteriorVolume, getVolumeContext } from '@/lib/calculations/volume';
 import { calculateBoardFeet, calculateCubicMeters } from '@/lib/calculations/materials';
 import {
   toMillimeters,
@@ -22,7 +22,6 @@ import {
   formatNumber,
   getUnitLabel,
 } from '@/lib/utils/unitConversions';
-import { useState } from 'react';
 
 export function ResultsPanel() {
   const {
@@ -31,11 +30,8 @@ export function ResultsPanel() {
     height,
     diameter,
     thickness,
-    projectType,
-    unitSystem,
     lengthUnit,
     includeWaste,
-    applyDrainage,
   } = useCalculatorStore();
 
   // Convert inputs to millimeters (base unit for calculations)
@@ -63,6 +59,9 @@ export function ResultsPanel() {
     return daf ? fromMillimeters(daf, lengthUnit) : null;
   }, [diameterMm, numberOfSides, thicknessMm, lengthUnit]);
 
+  // Determine unit system from length unit
+  const unitSystem = lengthUnit === 'inches' || lengthUnit === 'feet' ? 'imperial' : 'metric';
+
   // Calculate interior volume (if thickness is specified)
   const volumeResult = useMemo(() => {
     if (thickness <= 0) return null;
@@ -75,18 +74,13 @@ export function ResultsPanel() {
       thicknessMm
     );
 
-    // Apply drainage reduction if applicable
-    const adjustedVolume = projectType === 'planter'
-      ? applyDrainageReduction(volumeMm3, applyDrainage)
-      : volumeMm3;
-
-    const volumeUnit = getSmartVolumeUnit(adjustedVolume, unitSystem);
-    const volumeValue = convertVolume(adjustedVolume, volumeUnit);
+    const volumeUnit = getSmartVolumeUnit(volumeMm3, unitSystem);
+    const volumeValue = convertVolume(volumeMm3, volumeUnit);
 
     // Get context message
-    const volumeInGallons = convertVolume(adjustedVolume, 'gallons');
-    const volumeInLiters = convertVolume(adjustedVolume, 'liters');
-    const context = getVolumeContext(volumeInGallons, volumeInLiters, projectType, unitSystem);
+    const volumeInGallons = convertVolume(volumeMm3, 'gallons');
+    const volumeInLiters = convertVolume(volumeMm3, 'liters');
+    const context = getVolumeContext(volumeInGallons, volumeInLiters, 'general', unitSystem);
 
     return {
       value: volumeValue,
@@ -94,7 +88,7 @@ export function ResultsPanel() {
       label: getUnitLabel(volumeUnit),
       context,
     };
-  }, [diameterMm, heightMm, numberOfSides, sideAngle, thicknessMm, thickness, projectType, unitSystem, applyDrainage]);
+  }, [diameterMm, heightMm, numberOfSides, sideAngle, thicknessMm, thickness, unitSystem]);
 
   // Calculate board feet / cubic meters (if thickness is specified)
   const materialResult = useMemo(() => {
@@ -142,37 +136,33 @@ export function ResultsPanel() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 sm:space-y-6">
-        {/* Saw Settings Group */}
+        {/* Saw Settings Group - Side by Side */}
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-muted-foreground">Saw Settings</h3>
-          <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
-            <ResultCard
-              label="β Blade Tilt"
-              value={`${formatNumber(angles.bladeTilt, 1)}°`}
-              description="Bevel angle"
-              tooltip="The angle to tilt your saw blade from horizontal (0°) for the bevel cut"
-              copyValue={angles.bladeTilt.toString()}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <AngleCard
+              symbol="γ"
+              primaryLabel="Miter Gauge"
+              primaryValue={angles.miterGauge}
+              complementValue={angles.miterGaugeComplement}
+              primaryDescription="Miter setting"
+              complementDescription="From square"
+              primaryTooltip="The angle to set your miter gauge for the horizontal cut angle"
+              complementTooltip="The miter gauge angle measured from 90° (square). Alternative reference."
+              color="from-blue-500/20 to-indigo-500/20"
+              textColor="text-blue-600 dark:text-blue-400"
             />
-            <ResultCard
-              label="β Complement"
-              value={`${formatNumber(angles.bladeTiltComplement, 1)}°`}
-              description="From vertical"
-              tooltip="The blade tilt measured from vertical (90°). Some saws use this reference."
-              copyValue={angles.bladeTiltComplement.toString()}
-            />
-            <ResultCard
-              label="γ Miter Gauge"
-              value={`${formatNumber(angles.miterGauge, 1)}°`}
-              description="Miter setting"
-              tooltip="The angle to set your miter gauge for the horizontal cut angle"
-              copyValue={angles.miterGauge.toString()}
-            />
-            <ResultCard
-              label="γ Complement"
-              value={`${formatNumber(angles.miterGaugeComplement, 1)}°`}
-              description="From square"
-              tooltip="The miter gauge angle measured from 90° (square). Alternative reference."
-              copyValue={angles.miterGaugeComplement.toString()}
+            <AngleCard
+              symbol="β"
+              primaryLabel="Blade Tilt"
+              primaryValue={angles.bladeTilt}
+              complementValue={angles.bladeTiltComplement}
+              primaryDescription="Bevel angle"
+              complementDescription="From vertical"
+              primaryTooltip="The angle to tilt your saw blade from horizontal (0°) for the bevel cut"
+              complementTooltip="The blade tilt measured from vertical (90°). Some saws use this reference."
+              color="from-amber-500/20 to-orange-500/20"
+              textColor="text-amber-600 dark:text-amber-400"
             />
           </div>
         </div>
@@ -242,6 +232,111 @@ export function ResultsPanel() {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+interface AngleCardProps {
+  symbol: string;
+  primaryLabel: string;
+  primaryValue: number;
+  complementValue: number;
+  primaryDescription: string;
+  complementDescription: string;
+  primaryTooltip: string;
+  complementTooltip: string;
+  color: string;
+  textColor: string;
+}
+
+function AngleCard({
+  symbol,
+  primaryLabel,
+  primaryValue,
+  complementValue,
+  primaryDescription,
+  complementDescription,
+  primaryTooltip,
+  complementTooltip,
+  color,
+  textColor,
+}: AngleCardProps) {
+  const [showComplement, setShowComplement] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const displayValue = showComplement ? complementValue : primaryValue;
+  const displayLabel = showComplement ? `${symbol} Complement` : `${symbol} ${primaryLabel}`;
+  const displayDescription = showComplement ? complementDescription : primaryDescription;
+  const displayTooltip = showComplement ? complementTooltip : primaryTooltip;
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(displayValue.toString());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className={`relative p-6 rounded-lg border bg-gradient-to-br ${color} border-border/50`}>
+      <div className="space-y-4">
+        {/* Header with toggle */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className={`text-sm font-semibold ${textColor}`}>{displayLabel}</div>
+            {displayTooltip && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/60 hover:text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs">
+                    <p className="text-xs">{displayTooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowComplement(!showComplement)}
+            className="h-7 px-2"
+            title="Toggle complement angle"
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+
+        {/* Large angle display */}
+        <div className="flex items-end justify-between">
+          <div className="space-y-1">
+            <div className={`text-5xl font-bold tracking-tight ${textColor}`}>
+              {formatNumber(displayValue, 1)}°
+            </div>
+            <div className="text-sm text-muted-foreground">{displayDescription}</div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={copyToClipboard}
+            className="h-9 w-9"
+            title="Copy to clipboard"
+          >
+            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          </Button>
+        </div>
+
+        {/* Complement preview */}
+        <div className="pt-3 border-t border-border/30">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">
+              {showComplement ? primaryDescription : complementDescription}:
+            </span>
+            <span className="font-medium">
+              {formatNumber(showComplement ? primaryValue : complementValue, 1)}°
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

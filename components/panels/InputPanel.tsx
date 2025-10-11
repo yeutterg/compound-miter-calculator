@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Select,
   SelectContent,
@@ -13,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCalculatorStore } from '@/lib/store';
-import { THICKNESS_PRESETS } from '@/lib/utils/unitConversions';
+import { THICKNESS_PRESETS, type LengthUnit } from '@/lib/utils/unitConversions';
 
 export function InputPanel() {
   const {
@@ -22,24 +23,18 @@ export function InputPanel() {
     height,
     diameter,
     thickness,
-    projectType,
-    unitSystem,
     lengthUnit,
     includeWaste,
-    applyDrainage,
     setNumberOfSides,
     setSideAngle,
     setHeight,
     setDiameter,
     setThickness,
-    setProjectType,
-    setUnitSystem,
     setLengthUnit,
     setIncludeWaste,
-    setApplyDrainage,
   } = useCalculatorStore();
 
-  const isImperial = unitSystem === 'imperial';
+  const isImperial = lengthUnit === 'inches' || lengthUnit === 'feet';
   const thicknessPresets = isImperial
     ? THICKNESS_PRESETS.imperial
     : THICKNESS_PRESETS.metric;
@@ -57,39 +52,6 @@ export function InputPanel() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 sm:space-y-6">
-        {/* Project Settings Group */}
-        <div className="space-y-3 sm:space-y-4">
-          <h3 className="text-sm font-medium">Project Settings</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="projectType">Project Type</Label>
-              <Select value={projectType} onValueChange={(value) => setProjectType(value as typeof projectType)}>
-                <SelectTrigger id="projectType">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="general">General</SelectItem>
-                  <SelectItem value="planter">Planter/Container</SelectItem>
-                  <SelectItem value="decorative">Decorative</SelectItem>
-                  <SelectItem value="storage">Storage Box</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="unitSystem">Unit System</Label>
-              <Select value={unitSystem} onValueChange={(value) => setUnitSystem(value as typeof unitSystem)}>
-                <SelectTrigger id="unitSystem">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="imperial">Imperial</SelectItem>
-                  <SelectItem value="metric">Metric</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
 
         {/* Geometry Group */}
         <div className="space-y-3 sm:space-y-4">
@@ -97,9 +59,21 @@ export function InputPanel() {
 
           {/* Number of Sides */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <Label htmlFor="numberOfSides">Number of Sides</Label>
-              <span className="text-sm font-medium text-muted-foreground">{numberOfSides}</span>
+              <Input
+                id="numberOfSidesInput"
+                type="number"
+                min={3}
+                max={60}
+                step={1}
+                value={numberOfSides}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 3;
+                  setNumberOfSides(Math.max(3, Math.min(60, val)));
+                }}
+                className="w-20 text-right"
+              />
             </div>
             <Slider
               id="numberOfSides"
@@ -108,14 +82,30 @@ export function InputPanel() {
               step={1}
               value={[numberOfSides]}
               onValueChange={([value]) => setNumberOfSides(value)}
+              className="relative"
             />
           </div>
 
           {/* Side Angle */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <Label htmlFor="sideAngle">Side Angle</Label>
-              <span className="text-sm font-medium text-muted-foreground">{sideAngle}°</span>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="sideAngleInput"
+                  type="number"
+                  min={1}
+                  max={90}
+                  step={1}
+                  value={sideAngle}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 1;
+                    setSideAngle(Math.max(1, Math.min(90, val)));
+                  }}
+                  className="w-20 text-right"
+                />
+                <span className="text-sm font-medium">°</span>
+              </div>
             </div>
             <Slider
               id="sideAngle"
@@ -124,6 +114,7 @@ export function InputPanel() {
               step={1}
               value={[sideAngle]}
               onValueChange={([value]) => setSideAngle(value)}
+              className="relative"
             />
             <p className="text-xs text-muted-foreground">
               90° = vertical sides, 45° = moderate slope, 1° = nearly horizontal
@@ -133,10 +124,40 @@ export function InputPanel() {
 
         {/* Dimensions Group */}
         <div className="space-y-3 sm:space-y-4">
-          <h3 className="text-sm font-medium">Dimensions ({unitLabel})</h3>
+          <h3 className="text-sm font-medium">Dimensions</h3>
+
+          {/* Unit Selection */}
+          <div className="space-y-2">
+            <Label>Units</Label>
+            <RadioGroup
+              value={lengthUnit}
+              onValueChange={(value) => setLengthUnit(value as LengthUnit)}
+              className="flex flex-row gap-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="inches" id="unit-inches" />
+                <Label htmlFor="unit-inches" className="cursor-pointer font-normal">
+                  Inches
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="millimeters" id="unit-mm" />
+                <Label htmlFor="unit-mm" className="cursor-pointer font-normal">
+                  mm
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="centimeters" id="unit-cm" />
+                <Label htmlFor="unit-cm" className="cursor-pointer font-normal">
+                  cm
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
-              <Label htmlFor="height">Height</Label>
+              <Label htmlFor="height">Height ({unitLabel})</Label>
               <Input
                 id="height"
                 type="number"
@@ -148,7 +169,7 @@ export function InputPanel() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="diameter">Diameter</Label>
+              <Label htmlFor="diameter">Diameter ({unitLabel})</Label>
               <Input
                 id="diameter"
                 type="number"
@@ -209,19 +230,6 @@ export function InputPanel() {
               Add 10% waste to material estimate
             </Label>
           </div>
-
-          {projectType === 'planter' && (
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="applyDrainage"
-                checked={applyDrainage}
-                onCheckedChange={(checked) => setApplyDrainage(checked as boolean)}
-              />
-              <Label htmlFor="applyDrainage" className="cursor-pointer font-normal">
-                Reduce volume by 10% for drainage
-              </Label>
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>

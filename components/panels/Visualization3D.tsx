@@ -838,6 +838,7 @@ export function Visualization3D() {
   const [isHorizontalFlip, setIsHorizontalFlip] = React.useState(false);
   const [isVerticalFlip, setIsVerticalFlip] = React.useState(false);
   const [canvasKey, setCanvasKey] = React.useState(0);
+  const [zoom, setZoom] = React.useState(60);
   const controlsRef = React.useRef<OrbitControlsImpl | null>(null);
 
   const unitLabel = getUnitLabel(lengthUnit);
@@ -867,6 +868,9 @@ export function Visualization3D() {
     ? [3, 3, 3]
     : [0, 0, 5];
 
+  // Use zoom state instead of fixed value
+  const cameraZoom = viewMode === '3d' ? zoom * 0.833 : zoom;
+
   const rotation: [number, number, number] = [
     isVerticalFlip ? Math.PI : 0,
     isHorizontalFlip ? Math.PI : 0,
@@ -889,6 +893,7 @@ export function Visualization3D() {
     setIsHorizontalFlip(false);
     setIsVerticalFlip(false);
     setViewMode('3d');
+    setZoom(60);
     if (controlsRef.current) {
       controlsRef.current.reset();
     }
@@ -965,12 +970,31 @@ export function Visualization3D() {
         </Button>
       </div>
 
+      {/* Zoom Control */}
+      <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-2 bg-background/80 p-2 rounded backdrop-blur-sm">
+        <Label className="text-[10px] writing-mode-vertical-rl rotate-180">Zoom</Label>
+        <input
+          type="range"
+          min="10"
+          max="200"
+          value={zoom}
+          onChange={(e) => setZoom(Number(e.target.value))}
+          className="h-32 slider-vertical"
+          style={{
+            width: '24px',
+            transform: 'rotate(270deg)',
+            transformOrigin: 'center'
+          } as React.CSSProperties}
+        />
+        <span className="text-[10px] text-muted-foreground">{Math.round(zoom)}%</span>
+      </div>
+
       <Canvas
         key={`${canvasKey}-${viewMode}`}
         orthographic={viewMode !== '3d'}
         camera={{
           position: cameraPosition,
-          zoom: viewMode === '3d' ? 50 : 60,
+          zoom: cameraZoom,
           near: 0.1,
           far: 1000,
         }}

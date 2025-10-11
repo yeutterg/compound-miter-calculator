@@ -339,17 +339,17 @@ function AngleCard({
               {showComplement ? primaryDescription : `Complement ${complementDescription}`}:
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">
+              <span className="text-xl font-bold">
                 {formatNumber(showComplement ? primaryValue : complementValue, 1)}°
               </span>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={copyComplementToClipboard}
-                className="h-6 w-6"
+                className="h-7 w-7"
                 title="Copy complement to clipboard"
               >
-                {copiedComplement ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                {copiedComplement ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               </Button>
             </div>
           </div>

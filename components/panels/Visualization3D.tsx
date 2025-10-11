@@ -852,7 +852,7 @@ export function Visualization3D() {
   const [isHorizontalFlip, setIsHorizontalFlip] = React.useState(false);
   const [isVerticalFlip, setIsVerticalFlip] = React.useState(false);
   const [canvasKey, setCanvasKey] = React.useState(0);
-  const [zoom, setZoom] = React.useState(100);
+  const [zoom, setZoom] = React.useState(10);
   const controlsRef = React.useRef<OrbitControlsImpl | null>(null);
 
   const unitLabel = getUnitLabel(lengthUnit);
@@ -907,7 +907,7 @@ export function Visualization3D() {
     setIsHorizontalFlip(false);
     setIsVerticalFlip(false);
     setViewMode('3d');
-    setZoom(100);
+    setZoom(10);
     if (controlsRef.current) {
       controlsRef.current.reset();
     }
@@ -995,7 +995,7 @@ export function Visualization3D() {
           onChange={(e) => setZoom(Number(e.target.value))}
           className="slider-vertical"
           style={{
-            width: '32px',
+            width: '80px',
             height: '300px',
             transform: 'rotate(270deg)',
             transformOrigin: 'center',

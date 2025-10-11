@@ -305,7 +305,7 @@ function AngleCard({
         </div>
 
         {/* Large angle display */}
-        <div className="flex items-end justify-between">
+        <div className="flex items-center justify-between">
           <div className="space-y-1">
             <div className={`text-5xl font-bold tracking-tight ${textColor}`}>
               {formatNumber(displayValue, 1)}°
@@ -316,7 +316,7 @@ function AngleCard({
             variant="ghost"
             size="icon"
             onClick={copyMainToClipboard}
-            className="h-9 w-9"
+            className="h-9 w-9 self-start mt-2"
             title="Copy to clipboard"
           >
             {copiedMain ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}

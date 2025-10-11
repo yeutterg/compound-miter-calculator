@@ -995,7 +995,7 @@ export function Visualization3D() {
           onChange={(e) => setZoom(Number(e.target.value))}
           className="slider-vertical"
           style={{
-            width: '80px',
+            width: '160px',
             height: '300px',
             transform: 'rotate(270deg)',
             transformOrigin: 'center',

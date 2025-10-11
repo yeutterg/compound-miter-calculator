@@ -97,6 +97,19 @@ export function InputPanel() {
                   </div>
                 </div>
 
+                {/* Slider */}
+                <div className="space-y-2">
+                  <Slider
+                    id="numberOfSides"
+                    min={3}
+                    max={60}
+                    step={1}
+                    value={[numberOfSides]}
+                    onValueChange={([value]) => setNumberOfSides(value)}
+                    className="relative"
+                  />
+                </div>
+
                 {/* Input field */}
                 <div className="pt-3 border-t border-border/30">
                   <div className="flex items-center gap-2">
@@ -155,6 +168,19 @@ export function InputPanel() {
                   </div>
                 </div>
 
+                {/* Slider */}
+                <div className="space-y-2">
+                  <Slider
+                    id="sideAngle"
+                    min={1}
+                    max={90}
+                    step={1}
+                    value={[sideAngle]}
+                    onValueChange={([value]) => setSideAngle(value)}
+                    className="relative"
+                  />
+                </div>
+
                 {/* Input field */}
                 <div className="pt-3 border-t border-border/30">
                   <div className="flex items-center gap-2">
@@ -175,38 +201,6 @@ export function InputPanel() {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Sliders below the cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            <div className="space-y-2">
-              <Label htmlFor="numberOfSides" className="text-xs text-muted-foreground">
-                Number of Sides Slider
-              </Label>
-              <Slider
-                id="numberOfSides"
-                min={3}
-                max={60}
-                step={1}
-                value={[numberOfSides]}
-                onValueChange={([value]) => setNumberOfSides(value)}
-                className="relative"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="sideAngle" className="text-xs text-muted-foreground">
-                Side Angle Slider
-              </Label>
-              <Slider
-                id="sideAngle"
-                min={1}
-                max={90}
-                step={1}
-                value={[sideAngle]}
-                onValueChange={([value]) => setSideAngle(value)}
-                className="relative"
-              />
             </div>
           </div>
 

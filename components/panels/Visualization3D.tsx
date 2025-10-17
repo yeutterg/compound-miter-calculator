@@ -101,6 +101,52 @@ function buildPlanLoop(sides: number, radius: number) {
   return points;
 }
 
+
+function useWoodTexture() {
+  return React.useMemo(() => {
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, '#8c5930');
+    gradient.addColorStop(0.5, '#b07941');
+    gradient.addColorStop(1, '#d5b385');
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const { data } = imageData;
+    for (let i = 0; i < data.length; i += 4) {
+      const random = (Math.random() - 0.5) * 12;
+      data[i] = Math.min(255, Math.max(0, data[i] + random));
+      data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + random * 0.6));
+      data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + random * 0.3));
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.anisotropy = 4;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.MirroredRepeatWrapping;
+    texture.repeat.set(2, 1);
+    texture.needsUpdate = true;
+    return texture;
+  }, []);
+}
+
+interface BoardMetrics {
+  outerRadiusBottom: number;
+  outerRadiusTop: number;
+  innerRadiusBottom: number;
+  innerRadiusTop: number;
+  segmentAngle: number;
+}
+
 // Side elevation / saw reference view
 function SideElevationView({
   diameter,

@@ -2,7 +2,7 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, Line, Text, Billboard, Edges } from '@react-three/drei';
+import { OrbitControls, Grid, Line, Text, Billboard } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import { useCalculatorStore } from '@/lib/store';
@@ -101,51 +101,6 @@ function buildPlanLoop(sides: number, radius: number) {
   return points;
 }
 
-function useWoodTexture() {
-  return React.useMemo(() => {
-    if (typeof document === 'undefined') return null;
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, '#8c5930');
-    gradient.addColorStop(0.5, '#b07941');
-    gradient.addColorStop(1, '#d5b385');
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const { data } = imageData;
-    for (let i = 0; i < data.length; i += 4) {
-      const random = (Math.random() - 0.5) * 12;
-      data[i] = Math.min(255, Math.max(0, data[i] + random));
-      data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + random * 0.6));
-      data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + random * 0.3));
-    }
-    ctx.putImageData(imageData, 0, 0);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.anisotropy = 4;
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.MirroredRepeatWrapping;
-    texture.repeat.set(2, 1);
-    texture.needsUpdate = true;
-    return texture;
-  }, []);
-}
-
-interface BoardMetrics {
-  outerRadiusBottom: number;
-  outerRadiusTop: number;
-  innerRadiusBottom: number;
-  innerRadiusTop: number;
-  segmentAngle: number;
-}
-
 // Side elevation / saw reference view
 function SideElevationView({
   diameter,
@@ -168,7 +123,6 @@ function SideElevationView({
 
   const innerOffsetX = thickness * Math.sin(angleFromVerticalRad);
   const innerOffsetY = thickness * Math.cos(angleFromVerticalRad);
-  const sideAngleRad = THREE.MathUtils.degToRad(sideAngle);
 
   const outerPoints = useMemo(() => ([
     new THREE.Vector3(-halfWidth, -wallHeight / 2, 0),
@@ -836,7 +790,7 @@ function PolygonShape3D({
 
   // Build face geometries for solid rendering
   const faceMeshes = useMemo(() => {
-    const faces: JSX.Element[] = [];
+    const faces: React.ReactElement[] = [];
 
     // Outer faces
     for (let i = 0; i < numberOfSides; i++) {
@@ -1037,7 +991,7 @@ export function Visualization3D() {
   ];
 
   const viewHelperMessage = viewMode === '3d'
-    ? 'Drag to rotate • Scroll to zoom • Double-click to reset'
+    ? 'Drag to orbit the saw • Scroll to zoom • Double-click to reset'
     : viewMode === 'top'
       ? 'Top View • Scroll to zoom • Switch views above'
       : 'Side Elevation View • Scroll to zoom • Switch views above';
@@ -1210,15 +1164,15 @@ export function Visualization3D() {
         <Grid
           args={[10, 10]}
           cellSize={0.5}
-          cellThickness={0.5}
-          cellColor="#374151"
+          cellThickness={0.4}
+          cellColor="#1f2937"
           sectionSize={1}
-          sectionThickness={1}
-          sectionColor="#4b5563"
-          fadeDistance={25}
+          sectionThickness={0.8}
+          sectionColor="#334155"
+          fadeDistance={20}
           fadeStrength={1}
           infiniteGrid
-          position={[0, 0, 0]}
+          position={[0, -0.45, 0]}
         />
 
         <OrbitControls
@@ -1232,8 +1186,6 @@ export function Visualization3D() {
           zoomSpeed={0.75}
           enableRotate={viewMode === '3d'}
         />
-
-        <axesHelper args={[1.5]} />
       </Canvas>
 
       <div className="absolute bottom-2 left-2 sm:bottom-4 sm:left-4 text-[10px] sm:text-xs text-muted-foreground bg-background/80 p-1.5 sm:p-2 rounded backdrop-blur-sm">
@@ -1243,16 +1195,19 @@ export function Visualization3D() {
       <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 text-[10px] sm:text-xs text-muted-foreground bg-background/80 p-1.5 sm:p-2 rounded backdrop-blur-sm">
         <div className="flex flex-wrap gap-2 sm:gap-3">
           <span className="flex items-center gap-1">
-            <div className="w-3 h-0.5 bg-blue-500"></div> Vertical reference
+            <div className="w-3 h-0.5 rounded-sm bg-amber-600"></div> Workpiece body
           </span>
           <span className="flex items-center gap-1">
-            <div className="w-3 h-0.5 bg-emerald-500"></div> Thickness reference
+            <div className="w-3 h-0.5 rounded-sm bg-slate-600"></div> Saw base & table
           </span>
           <span className="flex items-center gap-1">
-            <div className="w-3 h-0.5 bg-amber-400"></div> Blade tilt
+            <div className="w-3 h-0.5 rounded-sm bg-amber-300"></div> β Blade tilt arc
           </span>
           <span className="flex items-center gap-1">
-            <div className="w-3 h-0.5 bg-sky-400"></div> Side pitch
+            <div className="w-3 h-0.5 rounded-sm bg-indigo-300"></div> γ Miter gauge arc
+          </span>
+          <span className="flex items-center gap-1">
+            <div className="w-3 h-0.5 rounded-sm bg-sky-400"></div> α Side pitch reference
           </span>
         </div>
       </div>

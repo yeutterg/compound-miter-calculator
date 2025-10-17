@@ -35,6 +35,8 @@ interface BoardInstance {
   position: [number, number, number];
   explodeNormal: [number, number, number];
   labelPosition: [number, number, number];
+  outerBottom: [number, number, number];
+  outerTop: [number, number, number];
 }
 
 function useWoodTexture() {
@@ -151,6 +153,9 @@ function buildBoardInstances(sides: number, metrics: SceneMetrics): BoardInstanc
 
     const centroid = vertices.reduce((acc, v) => acc.add(v), new THREE.Vector3()).multiplyScalar(1 / vertices.length);
 
+    const outerBottomLocal = outerBottomA.clone().sub(centroid);
+    const outerTopLocal = outerTopA.clone().sub(centroid);
+
     const relativePositions = new Float32Array(vertices.length * 3);
     vertices.forEach((vertex, idx) => {
       const rel = vertex.sub(centroid);
@@ -195,6 +200,8 @@ function buildBoardInstances(sides: number, metrics: SceneMetrics): BoardInstanc
       position: [centroid.x, centroid.y, centroid.z],
       explodeNormal: [explodeNormal.x, explodeNormal.y, explodeNormal.z],
       labelPosition: [labelPosition.x, labelPosition.y, labelPosition.z],
+      outerBottom: [outerBottomLocal.x, outerBottomLocal.y, outerBottomLocal.z],
+      outerTop: [outerTopLocal.x, outerTopLocal.y, outerTopLocal.z],
     });
   }
 
@@ -273,39 +280,26 @@ function DimensionLabels({ boards, angle, metrics }: { boards: BoardInstance[]; 
 
 function SideAngleHighlight({
   metrics,
-  sideAngle,
   board,
   explode,
 }: {
   metrics: SceneMetrics;
-  sideAngle: number;
   board: BoardInstance | null;
   explode: number;
 }) {
-  const angleRad = THREE.MathUtils.degToRad(Math.max(sideAngle, 0.01));
-  const anchor = useMemo(() => new THREE.Vector3(metrics.outerBottomRadius, 0, 0), [metrics.outerBottomRadius]);
-  const verticalPoint = useMemo(
-    () => new THREE.Vector3(metrics.outerBottomRadius, metrics.height, 0),
-    [metrics.outerBottomRadius, metrics.height]
-  );
-  const slopePoint = useMemo(
-    () => new THREE.Vector3(metrics.outerTopRadius, metrics.height, 0),
-    [metrics.outerTopRadius, metrics.height]
-  );
+  const anchorBase = useMemo(() => {
+    if (!board) return null;
+    const [bx, by, bz] = board.outerBottom;
+    const [cx, cy, cz] = board.position;
+    return new THREE.Vector3(cx + bx, cy + by, cz + bz);
+  }, [board]);
 
-  const arcPoints = useMemo(() => {
-    const extent = Math.abs(metrics.outerBottomRadius - metrics.outerTopRadius);
-    const radius = Math.max(metrics.height * 0.25, extent * 2 + metrics.height * 0.15);
-    const segments = 32;
-    const pts: THREE.Vector3[] = [];
-    for (let i = 0; i <= segments; i++) {
-      const t = angleRad * (i / segments);
-      const x = anchor.x - Math.sin(t) * radius;
-      const y = anchor.y + Math.cos(t) * radius;
-      pts.push(new THREE.Vector3(x, y, anchor.z));
-    }
-    return pts;
-  }, [anchor, angleRad, metrics.height, metrics.outerBottomRadius, metrics.outerTopRadius]);
+  const topBase = useMemo(() => {
+    if (!board) return null;
+    const [tx, ty, tz] = board.outerTop;
+    const [cx, cy, cz] = board.position;
+    return new THREE.Vector3(cx + tx, cy + ty, cz + tz);
+  }, [board]);
 
   const explodeOffset = useMemo(() => {
     if (!board) return new THREE.Vector3();
@@ -313,29 +307,63 @@ function SideAngleHighlight({
     return new THREE.Vector3(nx, ny, nz).multiplyScalar(explode);
   }, [board, explode]);
 
-  const translatePoint = useCallback((point: THREE.Vector3) => point.clone().add(explodeOffset), [explodeOffset]);
-  const translatedArc = useMemo(() => arcPoints.map(translatePoint), [arcPoints, translatePoint]);
-  const translatedAnchor = useMemo(() => translatePoint(anchor), [translatePoint, anchor]);
-  const translatedVertical = useMemo(() => translatePoint(verticalPoint), [translatePoint, verticalPoint]);
-  const translatedSlope = useMemo(() => translatePoint(slopePoint), [translatePoint, slopePoint]);
-  const labelPosition = useMemo(
-    () => translatedArc[Math.floor(translatedArc.length * 0.6)] ?? translatedSlope,
-    [translatedArc, translatedSlope]
-  );
+  const anchor = useMemo(() => anchorBase?.clone().add(explodeOffset), [anchorBase, explodeOffset]);
+  const top = useMemo(() => topBase?.clone().add(explodeOffset), [topBase, explodeOffset]);
+
+  const angleData = useMemo(() => {
+    if (!anchor || !top) return null;
+    const vertical = new THREE.Vector3(0, 1, 0);
+    const boardVector = top.clone().sub(anchor);
+    if (boardVector.lengthSq() < 1e-6) return null;
+
+    const boardDir = boardVector.clone().normalize();
+    const axis = new THREE.Vector3().crossVectors(vertical, boardDir);
+    if (axis.lengthSq() < 1e-10) return null;
+    axis.normalize();
+
+    const actualAngle = THREE.MathUtils.radToDeg(vertical.angleTo(boardDir));
+    const angleRad = THREE.MathUtils.degToRad(actualAngle);
+
+    const verticalLength = boardVector.length();
+    const radius = Math.min(metrics.height * 0.6, verticalLength * 0.8);
+    const segments = 40;
+    const arcPoints: THREE.Vector3[] = [];
+    for (let i = 0; i <= segments; i++) {
+      const t = (angleRad * i) / segments;
+      const quat = new THREE.Quaternion().setFromAxisAngle(axis, t);
+      const rotated = vertical.clone().multiplyScalar(radius).applyQuaternion(quat);
+      arcPoints.push(anchor.clone().add(rotated));
+    }
+
+    const verticalPoint = anchor.clone().add(vertical.clone().multiplyScalar(verticalLength));
+    const labelPoint = arcPoints[Math.min(arcPoints.length - 1, Math.floor(arcPoints.length * 0.7))] ?? top.clone();
+
+    return {
+      actualAngle,
+      arcPoints,
+      verticalPoint,
+      topPoint: top,
+      labelPoint,
+    };
+  }, [anchor, top, metrics.height]);
+
+  if (!anchor || !angleData) return null;
+
+  const { actualAngle, arcPoints, verticalPoint, topPoint, labelPoint } = angleData;
 
   return (
     <group>
-      <Line points={[translatedAnchor, translatedVertical]} color="#38bdf8" lineWidth={1.6} />
-      <Line points={[translatedAnchor, translatedSlope]} color="#f97316" lineWidth={2.2} />
-      <Line points={translatedArc} color="#38bdf8" lineWidth={1.4} />
+      <Line points={[anchor, verticalPoint]} color="#38bdf8" lineWidth={1.6} />
+      <Line points={[anchor, topPoint]} color="#f97316" lineWidth={2.2} />
+      <Line points={arcPoints} color="#38bdf8" lineWidth={1.4} />
       <DreiText
-        position={labelPosition}
+        position={labelPoint}
         fontSize={metrics.height * 0.075}
         color="#e0f2fe"
         anchorX="center"
         anchorY="bottom"
       >
-        α {sideAngle.toFixed(1)}°
+        α {actualAngle.toFixed(1)}°
       </DreiText>
     </group>
   );
@@ -359,6 +387,13 @@ export function Visualization3D() {
     () => computeSceneMetrics(height, diameter, thickness, sideAngle, lengthUnit),
     [height, diameter, thickness, sideAngle, lengthUnit]
   );
+
+  const cameraPosition = useMemo<[number, number, number]>(() => {
+    const radius = Math.max(metrics.outerBottomRadius, metrics.height) * 4.2;
+    return [0, metrics.height * 0.75, radius];
+  }, [metrics.height, metrics.outerBottomRadius]);
+
+  const cameraTarget = useMemo<[number, number, number]>(() => [0, metrics.height * 0.55, 0], [metrics.height]);
 
   const boards = useMemo(
     () => buildBoardInstances(numberOfSides, metrics),
@@ -384,13 +419,42 @@ export function Visualization3D() {
   const physical = metrics.physical;
 
   const resetCamera = useCallback(() => {
-    controlsRef.current?.reset();
     setExplode(0);
-  }, []);
+    const controls = controlsRef.current;
+    if (!controls) return;
+    controls.reset();
+    const [px, py, pz] = cameraPosition;
+    const [tx, ty, tz] = cameraTarget;
+    controls.object.position.set(px, py, pz);
+    controls.target.set(tx, ty, tz);
+    controls.update();
+  }, [cameraPosition, cameraTarget]);
+
+  const handleControlsRef = useCallback((value: OrbitControlsImpl | null) => {
+    if (!value) return;
+    controlsRef.current = value;
+    const [px, py, pz] = cameraPosition;
+    const [tx, ty, tz] = cameraTarget;
+    value.object.position.set(px, py, pz);
+    value.target.set(tx, ty, tz);
+    value.update();
+    value.saveState();
+  }, [cameraPosition, cameraTarget]);
 
   useEffect(() => {
     setExplode(0);
   }, [numberOfSides, height, diameter, thickness, sideAngle]);
+
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    const [px, py, pz] = cameraPosition;
+    const [tx, ty, tz] = cameraTarget;
+    controls.object.position.set(px, py, pz);
+    controls.target.set(tx, ty, tz);
+    controls.update();
+    controls.saveState();
+  }, [cameraPosition, cameraTarget]);
 
   return (
     <Card className="relative w-full h-[420px] sm:h-[540px] md:h-[640px] overflow-hidden bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900">
@@ -430,8 +494,8 @@ export function Visualization3D() {
       <Canvas
         shadows
         camera={{
-          position: [1.8, 1.4, 1.8],
-          fov: 42,
+          position: cameraPosition,
+          fov: 32,
           near: 0.01,
           far: 50,
         }}
@@ -447,13 +511,12 @@ export function Visualization3D() {
         />
         <pointLight position={[-3, 2, -2]} intensity={0.35} />
 
-        <group rotation={[0, Math.PI / numberOfSides, 0]} position={[0, -metrics.height * 0.02, 0]}>
+        <group rotation={[0, Math.PI / numberOfSides - Math.PI / 2, 0]} position={[0, -metrics.height * 0.04, 0]}>
           <FinalAssembly boards={boards} woodTexture={woodTexture} explode={explode} />
 
           {boards.length > 0 && (
             <SideAngleHighlight
               metrics={metrics}
-              sideAngle={sideAngle}
               board={boards[0]}
               explode={explode}
             />
@@ -482,13 +545,11 @@ export function Visualization3D() {
         </group>
 
         <OrbitControls
-          ref={(value) => {
-            controlsRef.current = value;
-          }}
+          ref={handleControlsRef}
           enablePan={false}
           maxPolarAngle={Math.PI * 0.48}
-          minDistance={0.8}
-          maxDistance={4}
+          minDistance={Math.max(metrics.height * 0.7, metrics.outerBottomRadius * 1.6)}
+          maxDistance={Math.max(metrics.height, metrics.outerBottomRadius) * 8}
         />
       </Canvas>
 

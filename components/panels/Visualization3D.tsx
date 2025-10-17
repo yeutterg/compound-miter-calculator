@@ -115,13 +115,15 @@ function SideElevationView({
 }: SideElevationProps) {
   const wallHeight = Math.max(height, 0.01);
   const halfWidth = Math.max(diameter / 2, 0.2);
-  const taperAngle = Math.max(0.01, 90 - sideAngle);
-  const taperAngleRad = THREE.MathUtils.degToRad(taperAngle);
-  const horizontalOffset = wallHeight * Math.tan(taperAngleRad);
+  // sideAngle is the angle FROM VERTICAL (90° = vertical, 45° = 45° lean inward)
+  // We need the horizontal offset caused by the lean
+  const angleFromVerticalRad = THREE.MathUtils.degToRad(90 - sideAngle);
+  const horizontalOffset = wallHeight * Math.tan(angleFromVerticalRad);
   const topHalfWidth = Math.max(halfWidth - horizontalOffset, halfWidth * 0.2);
 
-  const innerOffsetX = thickness * Math.sin(taperAngleRad);
-  const innerOffsetY = thickness * Math.cos(taperAngleRad);
+  const innerOffsetX = thickness * Math.sin(angleFromVerticalRad);
+  const innerOffsetY = thickness * Math.cos(angleFromVerticalRad);
+  const sideAngleRad = THREE.MathUtils.degToRad(sideAngle);
 
   const outerPoints = useMemo(() => ([
     new THREE.Vector3(-halfWidth, -wallHeight / 2, 0),
@@ -172,13 +174,14 @@ function SideElevationView({
   }, [bladeOrigin, bladeTilt, bladeTiltRad, bevelLength, wallHeight]);
 
   const pitchArc = useMemo(() => {
-    if (sideAngle <= 0.01) return null;
+    if (sideAngle >= 89.99) return null;
     const radius = Math.max(Math.min(halfWidth * 0.45, wallHeight * 0.35), 0.12);
+    const angleFromVertical = 90 - sideAngle;
     return createAngleArc2D(
       bottomRight.clone(),
       radius,
-      0,
-      THREE.MathUtils.degToRad(sideAngle),
+      Math.PI / 2, // Start from vertical (90°)
+      Math.PI / 2 - THREE.MathUtils.degToRad(angleFromVertical), // End at the side angle
       0x38bdf8
     );
   }, [bottomRight, halfWidth, wallHeight, sideAngle]);
@@ -306,7 +309,7 @@ function SideElevationView({
           <primitive object={pitchArc} />
           <Line points={[bottomRight, topRight]} color="#38bdf8" lineWidth={1.2} />
           <Line
-            points={[bottomRight, new THREE.Vector3(bottomRight.x + Math.max(halfWidth * 0.6, 0.45), bottomRight.y, 0)]}
+            points={[bottomRight, new THREE.Vector3(bottomRight.x, bottomRight.y + wallHeight, 0)]}
             color="#38bdf8"
             lineWidth={1.2}
             dashed
@@ -314,11 +317,11 @@ function SideElevationView({
             gapSize={0.05}
           />
           <Text
-            position={[bottomRight.x + Math.max(halfWidth * 0.4, 0.4), bottomRight.y + Math.max(wallHeight * 0.25, 0.25), 0]}
+            position={[bottomRight.x + Math.max(halfWidth * 0.15, 0.25), bottomRight.y + Math.max(wallHeight * 0.35, 0.25), 0]}
             fontSize={annotationFont * 0.85}
             color="#38bdf8"
             anchorX="left"
-            anchorY="bottom"
+            anchorY="middle"
             rotation={textRotation}
           >
             α {sideAngle.toFixed(1)}°
@@ -786,6 +789,94 @@ function PolygonShape3D({
     return buildPolygonPoints(numberOfSides, innerRadiusTop, height / 2);
   }, [numberOfSides, innerRadiusTop, height, thickness]);
 
+  // Build face geometries for solid rendering
+  const faceMeshes = useMemo(() => {
+    const faces: JSX.Element[] = [];
+
+    // Outer faces
+    for (let i = 0; i < numberOfSides; i++) {
+      const next = (i + 1) % numberOfSides;
+      const vertices = [
+        outerBottom[i],
+        outerTop[i],
+        outerTop[next],
+        outerBottom[next],
+      ];
+
+      const shape = new THREE.Shape();
+      shape.moveTo(0, 0);
+      shape.lineTo(0, 1);
+      shape.lineTo(1, 1);
+      shape.lineTo(1, 0);
+      shape.closePath();
+
+      const geometry = new THREE.ShapeGeometry(shape);
+      const positions = geometry.attributes.position;
+
+      // Map the quad to actual 3D positions
+      positions.setXYZ(0, vertices[0].x, vertices[0].y, vertices[0].z);
+      positions.setXYZ(1, vertices[1].x, vertices[1].y, vertices[1].z);
+      positions.setXYZ(2, vertices[2].x, vertices[2].y, vertices[2].z);
+      positions.setXYZ(3, vertices[3].x, vertices[3].y, vertices[3].z);
+
+      geometry.computeVertexNormals();
+
+      faces.push(
+        <mesh key={`outer-face-${i}`} geometry={geometry}>
+          <meshStandardMaterial
+            color="#8b6f47"
+            roughness={0.8}
+            metalness={0.1}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      );
+    }
+
+    // Inner faces (if thickness > 0)
+    if (innerBottom && innerTop && showMaterial) {
+      for (let i = 0; i < numberOfSides; i++) {
+        const next = (i + 1) % numberOfSides;
+        const vertices = [
+          innerBottom[i],
+          innerTop[i],
+          innerTop[next],
+          innerBottom[next],
+        ];
+
+        const shape = new THREE.Shape();
+        shape.moveTo(0, 0);
+        shape.lineTo(0, 1);
+        shape.lineTo(1, 1);
+        shape.lineTo(1, 0);
+        shape.closePath();
+
+        const geometry = new THREE.ShapeGeometry(shape);
+        const positions = geometry.attributes.position;
+
+        positions.setXYZ(0, vertices[0].x, vertices[0].y, vertices[0].z);
+        positions.setXYZ(1, vertices[1].x, vertices[1].y, vertices[1].z);
+        positions.setXYZ(2, vertices[2].x, vertices[2].y, vertices[2].z);
+        positions.setXYZ(3, vertices[3].x, vertices[3].y, vertices[3].z);
+
+        geometry.computeVertexNormals();
+
+        faces.push(
+          <mesh key={`inner-face-${i}`} geometry={geometry}>
+            <meshStandardMaterial
+              color="#6b5435"
+              roughness={0.85}
+              metalness={0.05}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        );
+      }
+    }
+
+    return faces;
+  }, [outerBottom, outerTop, innerBottom, innerTop, numberOfSides, showMaterial]);
+
   const outerEdges = useMemo(() => {
     const lines: [THREE.Vector3, THREE.Vector3][] = [];
     for (let i = 0; i < numberOfSides; i++) {
@@ -813,24 +904,25 @@ function PolygonShape3D({
 
   return (
     <group>
+      {/* Solid faces */}
+      {faceMeshes}
+
+      {/* Edge outlines for clarity */}
       {outerEdges.map((edge, i) => (
         <Line
           key={`outer-${i}`}
           points={[edge[0], edge[1]]}
-          color="#2563eb"
-          lineWidth={2}
+          color="#3d2f1f"
+          lineWidth={1.5}
         />
       ))}
 
-      {thickness > 0 && innerEdges.map((edge, i) => (
+      {thickness > 0 && showMaterial && innerEdges.map((edge, i) => (
         <Line
           key={`inner-${i}`}
           points={[edge[0], edge[1]]}
-          color={showMaterial ? '#10b981' : '#64748b'}
-          lineWidth={showMaterial ? 2 : 1}
-          dashed={!showMaterial}
-          dashSize={0.04}
-          gapSize={0.04}
+          color="#2d1f0f"
+          lineWidth={1}
         />
       ))}
     </group>
@@ -1016,8 +1108,10 @@ export function Visualization3D() {
         }}
       >
         <CameraController zoom={cameraZoom} />
-        <ambientLight intensity={0.7} />
-        <pointLight position={[10, 10, 10]} intensity={0.5} />
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[5, 10, 7.5]} intensity={0.8} castShadow />
+        <directionalLight position={[-5, 5, -5]} intensity={0.3} />
+        <pointLight position={[0, 5, 0]} intensity={0.4} />
 
         <group rotation={rotation}>
           {viewMode === '3d' ? (

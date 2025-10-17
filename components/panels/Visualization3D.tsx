@@ -2,7 +2,7 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, Line, Text, Billboard } from '@react-three/drei';
+import { OrbitControls, Grid, Line, Text, Billboard, Edges } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import { useCalculatorStore } from '@/lib/store';
@@ -100,6 +100,51 @@ function buildPlanLoop(sides: number, radius: number) {
   }
   return points;
 }
+function useWoodTexture() {
+  return React.useMemo(() => {
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, '#8c5930');
+    gradient.addColorStop(0.5, '#b07941');
+    gradient.addColorStop(1, '#d5b385');
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const random = (Math.random() - 0.5) * 12;
+      data[i] = Math.min(255, Math.max(0, data[i] + random));
+      data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + random * 0.6));
+      data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + random * 0.3));
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.anisotropy = 4;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.MirroredRepeatWrapping;
+    texture.repeat.set(2, 1);
+    texture.needsUpdate = true;
+    return texture;
+  }, []);
+}
+
+interface BoardMetrics {
+  outerRadiusBottom: number;
+  outerRadiusTop: number;
+  innerRadiusBottom: number;
+  innerRadiusTop: number;
+  segmentAngle: number;
+}
+
 
 // Side elevation / saw reference view
 function SideElevationView({
@@ -115,14 +160,14 @@ function SideElevationView({
 }: SideElevationProps) {
   const wallHeight = Math.max(height, 0.01);
   const halfWidth = Math.max(diameter / 2, 0.2);
-  // sideAngle is the angle FROM VERTICAL (90° = vertical, 45° = 45° lean inward)
-  // We need the horizontal offset caused by the lean
-  const angleFromVerticalRad = THREE.MathUtils.degToRad(90 - sideAngle);
-  const horizontalOffset = wallHeight * Math.tan(angleFromVerticalRad);
+  // sideAngle is the angle FROM VERTICAL (90° = vertical, 45° = 45° lean inward from vertical)
+  // To get horizontal offset: if the wall leans 45° from vertical, tan(45°) gives offset per unit height
+  const sideAngleRad = THREE.MathUtils.degToRad(sideAngle);
+  const horizontalOffset = wallHeight * Math.tan(sideAngleRad);
   const topHalfWidth = Math.max(halfWidth - horizontalOffset, halfWidth * 0.2);
 
-  const innerOffsetX = thickness * Math.sin(angleFromVerticalRad);
-  const innerOffsetY = thickness * Math.cos(angleFromVerticalRad);
+  const innerOffsetX = thickness * Math.sin(sideAngleRad);
+  const innerOffsetY = thickness * Math.cos(sideAngleRad);
 
   const outerPoints = useMemo(() => ([
     new THREE.Vector3(-halfWidth, -wallHeight / 2, 0),
@@ -175,12 +220,12 @@ function SideElevationView({
   const pitchArc = useMemo(() => {
     if (sideAngle >= 89.99) return null;
     const radius = Math.max(Math.min(halfWidth * 0.45, wallHeight * 0.35), 0.12);
-    const angleFromVertical = 90 - sideAngle;
+    // Arc goes from vertical (π/2) down by sideAngle radians
     return createAngleArc2D(
       bottomRight.clone(),
       radius,
       Math.PI / 2, // Start from vertical (90°)
-      Math.PI / 2 - THREE.MathUtils.degToRad(angleFromVertical), // End at the side angle
+      Math.PI / 2 - THREE.MathUtils.degToRad(sideAngle), // End at sideAngle from vertical
       0x38bdf8
     );
   }, [bottomRight, halfWidth, wallHeight, sideAngle]);
@@ -624,306 +669,443 @@ function TopPlanView({
   );
 }
 
-interface AngleAnnotations3DProps {
-  diameter: number;
+function createPolygonGeometry(
+  bottom: THREE.Vector3[],
+  top: THREE.Vector3[]
+) {
+  const positions: number[] = [];
+  const indices: number[] = [];
+  const vertexCount = bottom.length;
+
+  bottom.forEach(point => {
+    positions.push(point.x, point.y, point.z);
+  });
+  top.forEach(point => {
+    positions.push(point.x, point.y, point.z);
+  });
+
+  const shape2D = bottom.map(point => new THREE.Vector2(point.x, point.z));
+  const faces = THREE.ShapeUtils.triangulateShape(shape2D, []);
+
+  faces.forEach(([a, b, c]) => {
+    indices.push(c, b, a);
+  });
+
+  faces.forEach(([a, b, c]) => {
+    indices.push(a + vertexCount, b + vertexCount, c + vertexCount);
+  });
+
+  for (let i = 0; i < vertexCount; i++) {
+    const next = (i + 1) % vertexCount;
+    indices.push(i, next, i + vertexCount);
+    indices.push(next, next + vertexCount, i + vertexCount);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setIndex(indices);
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(positions, 3)
+  );
+  geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+interface Workpiece3DProps extends PolygonShapeProps {
+  metrics: BoardMetrics;
+  tableTopY: number;
+}
+
+function Workpiece3D({
+  numberOfSides,
+  height,
+  thickness,
+  showMaterial,
+  metrics,
+  tableTopY,
+}: Workpiece3DProps) {
+  const woodTexture = useWoodTexture();
+
+  const outerBottom = useMemo(
+    () => buildPolygonPoints(numberOfSides, metrics.outerRadiusBottom, tableTopY),
+    [numberOfSides, metrics.outerRadiusBottom, tableTopY]
+  );
+
+  const outerTop = useMemo(
+    () => buildPolygonPoints(numberOfSides, metrics.outerRadiusTop, tableTopY + height),
+    [numberOfSides, metrics.outerRadiusTop, tableTopY, height]
+  );
+
+  const outerGeometry = useMemo(
+    () => createPolygonGeometry(outerBottom, outerTop),
+    [outerBottom, outerTop]
+  );
+
+  const innerGeometry = useMemo(() => {
+    if (thickness <= 0) return null;
+    const { innerRadiusBottom, innerRadiusTop } = metrics;
+    if (innerRadiusBottom <= 0 || innerRadiusTop <= 0) return null;
+    const bufferOffset = Math.min(height * 0.04, thickness * 0.75);
+    const innerBottom = buildPolygonPoints(numberOfSides, innerRadiusBottom, tableTopY + bufferOffset);
+    const innerTop = buildPolygonPoints(numberOfSides, innerRadiusTop, tableTopY + height - bufferOffset);
+    return createPolygonGeometry(innerBottom, innerTop);
+  }, [metrics, numberOfSides, tableTopY, height, thickness]);
+
+  return (
+    <group>
+      <mesh
+        geometry={outerGeometry}
+        castShadow
+        receiveShadow
+      >
+        <meshStandardMaterial
+          color="#c99757"
+          roughness={0.62}
+          metalness={0.08}
+          map={woodTexture ?? undefined}
+        />
+      </mesh>
+      <Edges geometry={outerGeometry} threshold={20} />
+
+      {showMaterial && innerGeometry && (
+        <mesh geometry={innerGeometry}>
+          <meshStandardMaterial
+            color="#0f766e"
+            roughness={0.45}
+            metalness={0.1}
+            transparent
+            opacity={0.35}
+          />
+          <Edges geometry={innerGeometry} color="#0f766e" threshold={25} />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
+interface CompoundAngleMarkersProps {
+  metrics: BoardMetrics;
   height: number;
   sideAngle: number;
   bladeTilt: number;
   miterGauge: number;
+  tableRadius: number;
+  tableThickness: number;
 }
 
-function AngleAnnotations3D({
-  diameter,
+function CompoundAngleMarkers({
+  metrics,
   height,
   sideAngle,
   bladeTilt,
   miterGauge,
-}: AngleAnnotations3DProps) {
-  const outerRadius = Math.max(diameter / 2, 0.1);
-  const taperAngle = Math.max(0, 90 - sideAngle);
-  const taperOffset = height * Math.tan(THREE.MathUtils.degToRad(taperAngle));
-  const outerRadiusTop = Math.max(outerRadius - Math.min(taperOffset, outerRadius * 0.45), outerRadius * 0.4);
-  const bottomY = -height / 2;
-  const topY = height / 2;
-
+  tableRadius,
+  tableThickness,
+}: CompoundAngleMarkersProps) {
+  const tableSurface = 0;
   const sideAngleRad = THREE.MathUtils.degToRad(sideAngle);
-  const miterGaugeRad = THREE.MathUtils.degToRad(Math.max(miterGauge, 0));
+  const bladeTiltRad = THREE.MathUtils.degToRad(bladeTilt);
+  const miterGaugeRad = THREE.MathUtils.degToRad(miterGauge);
 
-  const alphaArcPoints = useMemo(() => {
-    const radius = Math.max(Math.min(outerRadius * 0.45, height * 0.4), 0.12);
-    const center = new THREE.Vector3(outerRadius, bottomY, 0);
-    const pts: THREE.Vector3[] = [];
-    const steps = 32;
+  const alphaArc = useMemo(() => {
+    const radius = Math.max(Math.min(metrics.outerRadiusBottom * 0.55, height * 0.55), 0.12);
+    const pivot = new THREE.Vector3(metrics.outerRadiusBottom, tableSurface, 0);
+    const points: THREE.Vector3[] = [];
+    const steps = 30;
     for (let i = 0; i <= steps; i++) {
       const t = sideAngleRad * (i / steps);
-      pts.push(new THREE.Vector3(
-        center.x + Math.cos(t) * radius,
-        center.y + Math.sin(t) * radius,
-        center.z,
+      points.push(new THREE.Vector3(
+        pivot.x + Math.cos(t) * radius,
+        pivot.y + Math.sin(t) * radius,
+        0,
       ));
     }
-    return { center, points: pts, radius };
-  }, [outerRadius, bottomY, height, sideAngleRad]);
+    const topPoint = new THREE.Vector3(metrics.outerRadiusTop, tableSurface + height, 0);
+    return { points, pivot, topPoint, radius };
+  }, [metrics.outerRadiusBottom, metrics.outerRadiusTop, sideAngleRad, height, tableSurface]);
 
-  const gammaArcPoints = useMemo(() => {
-    const radius = Math.max(outerRadius * 0.6, 0.2);
-    const center = new THREE.Vector3(0, bottomY, 0);
-    const pts: THREE.Vector3[] = [];
-    const steps = 32;
+  const miterArc = useMemo(() => {
+    const radius = Math.max(tableRadius * 1.05, metrics.outerRadiusBottom * 1.3, 0.35);
+    const y = tableSurface + Math.max(tableThickness * 0.08, 0.01);
+    const points: THREE.Vector3[] = [];
+    const steps = 48;
     for (let i = 0; i <= steps; i++) {
       const t = miterGaugeRad * (i / steps);
-      pts.push(new THREE.Vector3(
-        center.x + Math.cos(t) * radius,
-        center.y,
-        center.z + Math.sin(t) * radius,
+      points.push(new THREE.Vector3(
+        Math.sin(t) * radius,
+        y,
+        Math.cos(t) * radius,
       ));
     }
-    return { center, points: pts, radius };
-  }, [outerRadius, bottomY, miterGaugeRad]);
+    const end = new THREE.Vector3(
+      Math.sin(miterGaugeRad) * radius,
+      y,
+      Math.cos(miterGaugeRad) * radius,
+    );
+    return { points, y, radius, end };
+  }, [miterGaugeRad, tableRadius, metrics.outerRadiusBottom, tableSurface, tableThickness]);
 
-  const topSlopePoint = useMemo(() => (
-    new THREE.Vector3(outerRadiusTop, topY, 0)
-  ), [outerRadiusTop, topY]);
-
-  const bottomSlopePoint = useMemo(() => (
-    new THREE.Vector3(outerRadius, bottomY, 0)
-  ), [outerRadius, bottomY]);
-
-  const gammaEnd = useMemo(() => (
-    gammaArcPoints.center.clone().add(new THREE.Vector3(
-      Math.cos(miterGaugeRad) * gammaArcPoints.radius,
-      0,
-      Math.sin(miterGaugeRad) * gammaArcPoints.radius,
-    ))
-  ), [gammaArcPoints, miterGaugeRad]);
+  const bladeArc = useMemo(() => {
+    const pivot = new THREE.Vector3(0, tableSurface + height * 0.75, -tableRadius * 0.2);
+    const radius = Math.max(height * 0.35, tableRadius * 0.5);
+    const steps = 32;
+    const points: THREE.Vector3[] = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = bladeTiltRad * (i / steps);
+      points.push(new THREE.Vector3(
+        pivot.x,
+        pivot.y + Math.sin(t) * radius,
+        pivot.z + Math.cos(t) * radius,
+      ));
+    }
+    const end = new THREE.Vector3(
+      pivot.x,
+      pivot.y + Math.sin(bladeTiltRad) * radius,
+      pivot.z + Math.cos(bladeTiltRad) * radius,
+    );
+    return { pivot, points, end, radius };
+  }, [bladeTiltRad, height, tableRadius, tableSurface]);
 
   return (
     <group>
-      {/* Side angle α */}
-      <Line points={alphaArcPoints.points} color="#38bdf8" lineWidth={1.5} />
+      <Line points={alphaArc.points} color="#38bdf8" lineWidth={1.7} />
       <Line
-        points={[alphaArcPoints.center, alphaArcPoints.center.clone().add(new THREE.Vector3(alphaArcPoints.radius * 1.15, 0, 0))]}
+        points=[
+          new THREE.Vector3(metrics.outerRadiusBottom, tableSurface, 0),
+          alphaArc.topPoint,
+        ]
         color="#38bdf8"
-        lineWidth={1.2}
-        dashed
-        dashSize={0.05}
-        gapSize={0.05}
+        lineWidth={1.3}
       />
-      <Line points={[bottomSlopePoint, topSlopePoint]} color="#38bdf8" lineWidth={1.3} />
-      <Billboard position={alphaArcPoints.center.clone().add(new THREE.Vector3(alphaArcPoints.radius * 0.8, alphaArcPoints.radius * 0.65, 0))} follow={false} lockX lockY lockZ>
-        <Text fontSize={Math.max(height * 0.04, 0.04)} color="#38bdf8" anchorX="center" anchorY="middle">
+      <Billboard
+        position={alphaArc.pivot.clone().add(new THREE.Vector3(alphaArc.radius * 0.65, alphaArc.radius * 0.6, 0))}
+        follow={false}
+        lockX
+        lockY
+        lockZ
+      >
+        <Text fontSize={Math.max(height * 0.045, 0.05)} color="#38bdf8" anchorX="center" anchorY="middle">
           α {sideAngle.toFixed(1)}°
         </Text>
       </Billboard>
 
-      {/* Miter gauge γ */}
-      <Line points={gammaArcPoints.points} color="#c7d2fe" lineWidth={1.5} />
+      <Line points={miterArc.points} color="#c7d2fe" lineWidth={1.7} />
       <Line
-        points={[gammaArcPoints.center, gammaArcPoints.center.clone().add(new THREE.Vector3(gammaArcPoints.radius * 1.1, 0, 0))]}
+        points=[
+          new THREE.Vector3(0, miterArc.y, Math.max(tableRadius, 0.2)),
+          miterArc.end,
+        ]
         color="#c7d2fe"
-        lineWidth={1.2}
-        dashed
-        dashSize={0.05}
-        gapSize={0.05}
+        lineWidth={1.1}
       />
-      <Line points={[gammaArcPoints.center, gammaEnd]} color="#c7d2fe" lineWidth={1.2} />
-      <Billboard position={gammaArcPoints.center.clone().add(new THREE.Vector3(gammaArcPoints.radius * 0.65, 0, gammaArcPoints.radius * 0.45))} follow={false} lockX lockY lockZ>
-        <Text fontSize={Math.max(height * 0.04, 0.04)} color="#c7d2fe" anchorX="center" anchorY="middle">
+      <Billboard
+        position={new THREE.Vector3(miterArc.radius * 0.65 * Math.sin(miterGaugeRad * 0.6), miterArc.y + tableThickness * 0.6, miterArc.radius * 0.65 * Math.cos(miterGaugeRad * 0.6))}
+        follow={false}
+        lockX
+        lockY
+        lockZ
+      >
+        <Text fontSize={Math.max(height * 0.045, 0.05)} color="#c7d2fe" anchorX="center" anchorY="middle">
           γ {miterGauge.toFixed(1)}°
         </Text>
       </Billboard>
 
-      {/* Blade tilt β label */}
-      <Billboard position={[0, topY + Math.max(height * 0.15, 0.2), 0]} follow={false} lockX lockY lockZ>
-        <Text fontSize={Math.max(height * 0.045, 0.045)} color="#facc15" anchorX="center" anchorY="middle">
-          β Blade Tilt {bladeTilt.toFixed(1)}°
+      <Line points={bladeArc.points} color="#facc15" lineWidth={1.6} />
+      <Line
+        points=[
+          bladeArc.pivot,
+          bladeArc.end,
+        ]
+        color="#facc15"
+        lineWidth={1.1}
+      />
+      <Billboard
+        position={bladeArc.pivot.clone().add(new THREE.Vector3(0, bladeArc.radius * 0.75, bladeArc.radius * 0.45))}
+        follow={false}
+        lockX
+        lockY
+        lockZ
+      >
+        <Text fontSize={Math.max(height * 0.045, 0.05)} color="#facc15" anchorX="center" anchorY="middle">
+          β {bladeTilt.toFixed(1)}°
         </Text>
       </Billboard>
     </group>
   );
 }
 
-// 3D polygon shape component
-function PolygonShape3D({
+interface SawAssemblyProps {
+  tableRadius: number;
+  tableThickness: number;
+  baseHeight: number;
+  bladeTiltRad: number;
+  miterGaugeRad: number;
+  boardHeight: number;
+  children?: React.ReactNode;
+}
+
+function SawAssembly({
+  tableRadius,
+  tableThickness,
+  baseHeight,
+  bladeTiltRad,
+  miterGaugeRad,
+  boardHeight,
+  children,
+}: SawAssemblyProps) {
+  const fenceThickness = Math.max(tableRadius * 0.08, 0.04);
+  const fenceHeight = Math.max(boardHeight + tableThickness * 0.6, tableThickness * 6);
+  const bladeRadius = Math.max(boardHeight * 0.7, tableRadius * 0.9, 0.35);
+  const bladeThickness = Math.max(tableRadius * 0.1, 0.06);
+
+  return (
+    <group>
+      <mesh position={[0, -tableThickness - baseHeight / 2, 0]} receiveShadow>
+        <boxGeometry args={[tableRadius * 3.2, baseHeight, tableRadius * 2.4]} />
+        <meshStandardMaterial color="#0f172a" roughness={0.6} metalness={0.25} />
+      </mesh>
+      <mesh position={[0, -tableThickness / 2, 0]} receiveShadow>
+        <boxGeometry args={[tableRadius * 2.4, tableThickness, tableRadius * 2]} />
+        <meshStandardMaterial color="#1f2937" roughness={0.55} metalness={0.22} />
+      </mesh>
+      <group rotation={[0, miterGaugeRad, 0]}>
+        <mesh position={[0, -tableThickness / 2, 0]} receiveShadow>
+          <cylinderGeometry args={[tableRadius, tableRadius, tableThickness, 64]} />
+          <meshStandardMaterial color="#475569" roughness={0.45} metalness={0.5} />
+        </mesh>
+        <mesh position={[0, tableThickness / 2 + fenceHeight / 2, -tableRadius * 0.95]} receiveShadow>
+          <boxGeometry args={[tableRadius * 2.05, fenceHeight, fenceThickness]} />
+          <meshStandardMaterial color="#111827" roughness={0.5} metalness={0.2} />
+        </mesh>
+
+        {children}
+
+        <group position={[0, tableThickness / 2 + boardHeight * 0.75, -tableRadius * 0.2]}>
+          <group rotation={[0, 0, -bladeTiltRad]}>
+            <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
+              <cylinderGeometry args={[bladeRadius, bladeRadius, bladeThickness * 0.35, 48]} />
+              <meshStandardMaterial color="#facc15" emissive="#d97706" emissiveIntensity={0.18} roughness={0.3} metalness={0.85} />
+            </mesh>
+            <mesh rotation={[0, 0, Math.PI / 2]}>
+              <torusGeometry args={[bladeRadius * 0.92, bladeThickness * 0.13, 10, 48]} />
+              <meshStandardMaterial color="#fef08a" emissive="#b45309" emissiveIntensity={0.18} roughness={0.25} metalness={0.8} />
+            </mesh>
+            <mesh rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[bladeThickness * 0.35, bladeThickness * 0.35, bladeThickness * 0.6, 24]} />
+              <meshStandardMaterial color="#374151" roughness={0.4} metalness={0.6} />
+            </mesh>
+          </group>
+        </group>
+
+        <mesh position={[0, tableThickness / 2 + boardHeight * 0.85, bladeThickness * 1.4]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[bladeThickness * 0.45, bladeThickness * 0.45, bladeRadius * 1.35, 12]} />
+          <meshStandardMaterial color="#1f2937" roughness={0.5} metalness={0.22} />
+        </mesh>
+        <mesh position={[0, tableThickness / 2 + boardHeight * 1.05, bladeThickness * 1.4]}>
+          <boxGeometry args={[bladeThickness * 0.9, bladeThickness * 3.6, bladeThickness * 0.9]} />
+          <meshStandardMaterial color="#334155" roughness={0.45} metalness={0.25} />
+        </mesh>
+        <mesh position={[0, tableThickness / 2 + boardHeight * 1.35, bladeThickness * 1.4]} rotation={[Math.PI / 5, 0, 0]}>
+          <boxGeometry args={[bladeThickness * 0.7, bladeThickness * 1.7, bladeThickness * 0.7]} />
+          <meshStandardMaterial color="#64748b" roughness={0.4} metalness={0.22} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+interface CompoundSawSceneProps extends PolygonShapeProps {
+  bladeTilt: number;
+  miterGauge: number;
+}
+
+function CompoundSawScene({
   numberOfSides,
   diameter,
   height,
   sideAngle,
   thickness,
   showMaterial,
-}: PolygonShapeProps) {
-  const outerRadius = Math.max(diameter / 2, 0.1);
-  const segmentAngle = Math.PI / numberOfSides;
+  bladeTilt,
+  miterGauge,
+}: CompoundSawSceneProps) {
+  const metrics = useMemo<BoardMetrics>(() => {
+    const outerRadiusBottom = Math.max(diameter / 2, 0.12);
+    const segmentAngle = Math.PI / numberOfSides;
+    const outerApothemBottom = outerRadiusBottom * Math.cos(segmentAngle);
+    const innerApothemBottom = Math.max(outerApothemBottom - thickness, outerApothemBottom * 0.2);
+    const innerRadiusBottom = Math.max(innerApothemBottom / Math.cos(segmentAngle), outerRadiusBottom * 0.2);
 
-  const outerApothemBottom = outerRadius * Math.cos(segmentAngle);
-  const innerApothemBottom = Math.max(outerApothemBottom - thickness, outerApothemBottom * 0.2);
-  const innerRadiusBottom = Math.max(innerApothemBottom / Math.cos(segmentAngle), outerRadius * 0.2);
+    const angleFromVertical = Math.max(90 - sideAngle, 0);
+    const taperOffset = height * Math.tan(THREE.MathUtils.degToRad(angleFromVertical));
+    const maxTaper = outerRadiusBottom * 0.45;
+    const outerRadiusTop = Math.max(outerRadiusBottom - Math.min(taperOffset, maxTaper), outerRadiusBottom * 0.4);
 
-  const angleFromVertical = Math.max(90 - sideAngle, 0);
-  const taperOffset = height * Math.tan((angleFromVertical * Math.PI) / 180);
-  const maxTaper = outerRadius * 0.45;
-  const clampedTaper = Math.min(taperOffset, maxTaper);
-  const outerRadiusTop = Math.max(outerRadius - clampedTaper, outerRadius * 0.4);
+    const outerApothemTop = outerRadiusTop * Math.cos(segmentAngle);
+    const innerApothemTop = Math.max(outerApothemTop - thickness, outerApothemTop * 0.25);
+    const innerRadiusTop = Math.max(innerApothemTop / Math.cos(segmentAngle), outerRadiusTop * 0.3);
 
-  const outerApothemTop = outerRadiusTop * Math.cos(segmentAngle);
-  const innerApothemTop = Math.max(outerApothemTop - thickness, outerApothemTop * 0.2);
-  const innerRadiusTop = Math.max(innerApothemTop / Math.cos(segmentAngle), outerRadiusTop * 0.2);
+    return {
+      outerRadiusBottom,
+      outerRadiusTop,
+      innerRadiusBottom,
+      innerRadiusTop,
+      segmentAngle,
+    };
+  }, [diameter, height, numberOfSides, sideAngle, thickness]);
 
-  const outerBottom = useMemo(
-    () => buildPolygonPoints(numberOfSides, outerRadius, -height / 2),
-    [numberOfSides, outerRadius, height]
-  );
-  const outerTop = useMemo(
-    () => buildPolygonPoints(numberOfSides, outerRadiusTop, height / 2),
-    [numberOfSides, outerRadiusTop, height]
-  );
+  const tableRadius = Math.max(metrics.outerRadiusBottom * 1.35, height * 0.35, 0.35);
+  const tableThickness = Math.max(height * 0.08, 0.08);
+  const baseHeight = Math.max(tableThickness * 1.1, 0.12);
 
-  const innerBottom = useMemo(() => {
-    if (thickness <= 0) return null;
-    return buildPolygonPoints(numberOfSides, innerRadiusBottom, -height / 2);
-  }, [numberOfSides, innerRadiusBottom, height, thickness]);
-
-  const innerTop = useMemo(() => {
-    if (thickness <= 0) return null;
-    return buildPolygonPoints(numberOfSides, innerRadiusTop, height / 2);
-  }, [numberOfSides, innerRadiusTop, height, thickness]);
-
-  // Build face geometries for solid rendering
-  const faceMeshes = useMemo(() => {
-    const faces: React.ReactElement[] = [];
-
-    // Outer faces
-    for (let i = 0; i < numberOfSides; i++) {
-      const next = (i + 1) % numberOfSides;
-      const vertices = [
-        outerBottom[i],
-        outerTop[i],
-        outerTop[next],
-        outerBottom[next],
-      ];
-
-      const shape = new THREE.Shape();
-      shape.moveTo(0, 0);
-      shape.lineTo(0, 1);
-      shape.lineTo(1, 1);
-      shape.lineTo(1, 0);
-      shape.closePath();
-
-      const geometry = new THREE.ShapeGeometry(shape);
-      const positions = geometry.attributes.position;
-
-      // Map the quad to actual 3D positions
-      positions.setXYZ(0, vertices[0].x, vertices[0].y, vertices[0].z);
-      positions.setXYZ(1, vertices[1].x, vertices[1].y, vertices[1].z);
-      positions.setXYZ(2, vertices[2].x, vertices[2].y, vertices[2].z);
-      positions.setXYZ(3, vertices[3].x, vertices[3].y, vertices[3].z);
-
-      geometry.computeVertexNormals();
-
-      faces.push(
-        <mesh key={`outer-face-${i}`} geometry={geometry}>
-          <meshStandardMaterial
-            color="#8b6f47"
-            roughness={0.8}
-            metalness={0.1}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      );
-    }
-
-    // Inner faces (if thickness > 0)
-    if (innerBottom && innerTop && showMaterial) {
-      for (let i = 0; i < numberOfSides; i++) {
-        const next = (i + 1) % numberOfSides;
-        const vertices = [
-          innerBottom[i],
-          innerTop[i],
-          innerTop[next],
-          innerBottom[next],
-        ];
-
-        const shape = new THREE.Shape();
-        shape.moveTo(0, 0);
-        shape.lineTo(0, 1);
-        shape.lineTo(1, 1);
-        shape.lineTo(1, 0);
-        shape.closePath();
-
-        const geometry = new THREE.ShapeGeometry(shape);
-        const positions = geometry.attributes.position;
-
-        positions.setXYZ(0, vertices[0].x, vertices[0].y, vertices[0].z);
-        positions.setXYZ(1, vertices[1].x, vertices[1].y, vertices[1].z);
-        positions.setXYZ(2, vertices[2].x, vertices[2].y, vertices[2].z);
-        positions.setXYZ(3, vertices[3].x, vertices[3].y, vertices[3].z);
-
-        geometry.computeVertexNormals();
-
-        faces.push(
-          <mesh key={`inner-face-${i}`} geometry={geometry}>
-            <meshStandardMaterial
-              color="#6b5435"
-              roughness={0.85}
-              metalness={0.05}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-        );
-      }
-    }
-
-    return faces;
-  }, [outerBottom, outerTop, innerBottom, innerTop, numberOfSides, showMaterial]);
-
-  const outerEdges = useMemo(() => {
-    const lines: [THREE.Vector3, THREE.Vector3][] = [];
-    for (let i = 0; i < numberOfSides; i++) {
-      const next = (i + 1) % numberOfSides;
-      lines.push([outerBottom[i], outerBottom[next]]);
-      lines.push([outerTop[i], outerTop[next]]);
-      lines.push([outerBottom[i], outerTop[i]]);
-    }
-    return lines;
-  }, [outerBottom, outerTop, numberOfSides]);
-
-  const innerEdges = useMemo(() => {
-    if (!innerBottom || !innerTop) return [];
-    const lines: [THREE.Vector3, THREE.Vector3][] = [];
-    for (let i = 0; i < numberOfSides; i++) {
-      const next = (i + 1) % numberOfSides;
-      lines.push([innerBottom[i], innerBottom[next]]);
-      lines.push([innerTop[i], innerTop[next]]);
-      lines.push([innerBottom[i], innerTop[i]]);
-      lines.push([outerBottom[i], innerBottom[i]]);
-      lines.push([outerTop[i], innerTop[i]]);
-    }
-    return lines;
-  }, [outerBottom, outerTop, innerBottom, innerTop, numberOfSides]);
+  const bladeTiltRad = THREE.MathUtils.degToRad(bladeTilt);
+  const miterGaugeRad = THREE.MathUtils.degToRad(miterGauge);
 
   return (
     <group>
-      {/* Solid faces */}
-      {faceMeshes}
+      <SawAssembly
+        tableRadius={tableRadius}
+        tableThickness={tableThickness}
+        baseHeight={baseHeight}
+        bladeTiltRad={bladeTiltRad}
+        miterGaugeRad={miterGaugeRad}
+        boardHeight={height}
+      >
+        <group position={[0, 0, 0]}>
+          <Workpiece3D
+            numberOfSides={numberOfSides}
+            diameter={diameter}
+            height={height}
+            sideAngle={sideAngle}
+            thickness={thickness}
+            showMaterial={showMaterial}
+            metrics={metrics}
+            tableTopY={0}
+          />
+        </group>
+      </SawAssembly>
 
-      {/* Edge outlines for clarity */}
-      {outerEdges.map((edge, i) => (
-        <Line
-          key={`outer-${i}`}
-          points={[edge[0], edge[1]]}
-          color="#3d2f1f"
-          lineWidth={1.5}
-        />
-      ))}
+      <CompoundAngleMarkers
+        metrics={metrics}
+        height={height}
+        sideAngle={sideAngle}
+        bladeTilt={bladeTilt}
+        miterGauge={miterGauge}
+        tableRadius={tableRadius}
+        tableThickness={tableThickness}
+      />
 
-      {thickness > 0 && showMaterial && innerEdges.map((edge, i) => (
-        <Line
-          key={`inner-${i}`}
-          points={[edge[0], edge[1]]}
-          color="#2d1f0f"
-          lineWidth={1}
-        />
-      ))}
+      <spotLight
+        position={[tableRadius * 2.4, height * 2.4, tableRadius * 2.8]}
+        angle={Math.PI / 5}
+        penumbra={0.6}
+        intensity={1.1}
+      />
+      <pointLight
+        position={[-tableRadius * 1.8, height * 1.6, -tableRadius * 2]}
+        intensity={0.6}
+      />
     </group>
   );
 }
@@ -1117,23 +1299,16 @@ export function Visualization3D() {
 
         <group rotation={rotation}>
           {viewMode === '3d' ? (
-            <>
-              <PolygonShape3D
-                numberOfSides={numberOfSides}
-                diameter={scaledDiameter}
-                height={scaledHeight}
-                sideAngle={sideAngle}
-                thickness={scaledThickness}
-                showMaterial={showMaterial}
-              />
-              <AngleAnnotations3D
-                diameter={scaledDiameter}
-                height={scaledHeight}
-                sideAngle={sideAngle}
-                bladeTilt={angles.bladeTilt}
-                miterGauge={angles.miterGauge}
-              />
-            </>
+            <CompoundSawScene
+              numberOfSides={numberOfSides}
+              diameter={scaledDiameter}
+              height={scaledHeight}
+              sideAngle={sideAngle}
+              thickness={scaledThickness}
+              showMaterial={showMaterial}
+              bladeTilt={angles.bladeTilt}
+              miterGauge={angles.miterGauge}
+            />
           ) : viewMode === 'top' ? (
             <TopPlanView
               numberOfSides={numberOfSides}

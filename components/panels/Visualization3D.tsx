@@ -871,10 +871,10 @@ function CompoundAngleMarkers({
     <group>
       <Line points={alphaArc.points} color="#38bdf8" lineWidth={1.7} />
       <Line
-        points=[
+        points={[
           new THREE.Vector3(metrics.outerRadiusBottom, tableSurface, 0),
           alphaArc.topPoint,
-        ]
+        ]}
         color="#38bdf8"
         lineWidth={1.3}
       />
@@ -892,10 +892,10 @@ function CompoundAngleMarkers({
 
       <Line points={miterArc.points} color="#c7d2fe" lineWidth={1.7} />
       <Line
-        points=[
+        points={[
           new THREE.Vector3(0, miterArc.y, Math.max(tableRadius, 0.2)),
           miterArc.end,
-        ]
+        ]}
         color="#c7d2fe"
         lineWidth={1.1}
       />
@@ -913,10 +913,10 @@ function CompoundAngleMarkers({
 
       <Line points={bladeArc.points} color="#facc15" lineWidth={1.6} />
       <Line
-        points=[
+        points={[
           bladeArc.pivot,
           bladeArc.end,
-        ]
+        ]}
         color="#facc15"
         lineWidth={1.1}
       />

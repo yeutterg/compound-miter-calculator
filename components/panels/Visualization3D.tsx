@@ -88,25 +88,35 @@ function computeSceneMetrics(
   const rawThicknessMm = Math.max(0, toMillimeters(thickness, lengthUnit));
 
   const outerBottomRadiusMm = diameterMm / 2;
-  const taperAngle = Math.max(0, 90 - sideAngle);
-  const taperOffsetMm = heightMm * Math.tan(THREE.MathUtils.degToRad(taperAngle));
-  const outerTopRadiusMm = Math.max(outerBottomRadiusMm - taperOffsetMm, outerBottomRadiusMm * 0.28);
+  const taperAngleDeg = Math.max(0, 90 - sideAngle);
+  const taperAngleRad = THREE.MathUtils.degToRad(taperAngleDeg);
+  const taperOffsetMm = heightMm * Math.tan(taperAngleRad);
+  const outerTopRadiusRawMm = outerBottomRadiusMm - taperOffsetMm;
+  const outerTopRadiusAbsMm = Math.abs(outerTopRadiusRawMm);
+  const topRadiusSign = outerTopRadiusRawMm >= 0 ? 1 : -1;
 
   const maxWallMm = outerBottomRadiusMm * 0.95;
   const minWallMm = Math.max(2, outerBottomRadiusMm * 0.04);
   const effectiveWallMm = Math.min(Math.max(rawThicknessMm, minWallMm), maxWallMm);
   const clampedThickness = Math.abs(effectiveWallMm - rawThicknessMm) > 0.5;
 
-  const innerBottomRadiusMm = Math.max(outerBottomRadiusMm - effectiveWallMm, outerBottomRadiusMm * 0.05);
-  const innerTopRadiusMm = Math.max(outerTopRadiusMm - effectiveWallMm, outerTopRadiusMm * 0.05);
+  const innerBottomRadiusMm = Math.max(
+    outerBottomRadiusMm - effectiveWallMm,
+    Math.max(outerBottomRadiusMm * 0.05, 0)
+  );
 
-  const characteristic = Math.max(heightMm, outerBottomRadiusMm * 2, 500);
+  const innerTopRadiusMagnitudeMm = outerTopRadiusAbsMm === 0
+    ? 0
+    : Math.max(outerTopRadiusAbsMm - effectiveWallMm, outerTopRadiusAbsMm * 0.05);
+  const innerTopRadiusMm = innerTopRadiusMagnitudeMm * topRadiusSign;
+
+  const characteristic = Math.max(heightMm, outerBottomRadiusMm * 2, outerTopRadiusAbsMm * 2, 500);
   const scale = 1 / characteristic;
 
   return {
     height: heightMm * scale,
     outerBottomRadius: outerBottomRadiusMm * scale,
-    outerTopRadius: outerTopRadiusMm * scale,
+    outerTopRadius: outerTopRadiusRawMm * scale,
     innerBottomRadius: innerBottomRadiusMm * scale,
     innerTopRadius: innerTopRadiusMm * scale,
     wallThickness: effectiveWallMm * scale,
@@ -116,7 +126,7 @@ function computeSceneMetrics(
       heightMm,
       diameterMm,
       thicknessMm: effectiveWallMm,
-      topOpeningMm: outerTopRadiusMm * 2,
+      topOpeningMm: outerTopRadiusRawMm > 0 ? outerTopRadiusRawMm * 2 : 0,
       bottomFootprintMm: outerBottomRadiusMm * 2,
     },
   };

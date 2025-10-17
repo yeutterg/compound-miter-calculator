@@ -322,49 +322,54 @@ function SideAngleHighlight({
 
   const angleData = useMemo(() => {
     if (!anchor || !top) return null;
-    const vertical = new THREE.Vector3(0, 1, 0);
     const boardVector = top.clone().sub(anchor);
     if (boardVector.lengthSq() < 1e-6) return null;
 
     const boardDir = boardVector.clone().normalize();
-    const axis = new THREE.Vector3().crossVectors(vertical, boardDir);
+    const horizontalProjection = new THREE.Vector3(boardVector.x, 0, boardVector.z);
+    const horizontalMagnitude = horizontalProjection.length();
+    if (horizontalMagnitude < 1e-8) return null;
+
+    const baselineDir = horizontalProjection.normalize();
+    const angleRad = Math.atan2(boardVector.y, horizontalMagnitude);
+    if (!Number.isFinite(angleRad)) return null;
+    const actualAngle = THREE.MathUtils.radToDeg(Math.abs(angleRad));
+
+    const axis = new THREE.Vector3().crossVectors(baselineDir, boardDir);
     if (axis.lengthSq() < 1e-10) return null;
     axis.normalize();
 
-    const actualAngle = THREE.MathUtils.radToDeg(vertical.angleTo(boardDir));
-    const angleRad = THREE.MathUtils.degToRad(actualAngle);
-
-    const verticalLength = boardVector.length();
-    const radius = Math.min(metrics.height * 0.6, verticalLength * 0.8);
+    const radius = Math.min(metrics.height * 0.6, boardVector.length() * 0.8);
     const segments = 40;
     const arcPoints: THREE.Vector3[] = [];
     for (let i = 0; i <= segments; i++) {
       const t = (angleRad * i) / segments;
       const quat = new THREE.Quaternion().setFromAxisAngle(axis, t);
-      const rotated = vertical.clone().multiplyScalar(radius).applyQuaternion(quat);
+      const rotated = baselineDir.clone().multiplyScalar(radius).applyQuaternion(quat);
       arcPoints.push(anchor.clone().add(rotated));
     }
 
-    const verticalPoint = anchor.clone().add(vertical.clone().multiplyScalar(verticalLength));
-    const labelPoint = arcPoints[Math.min(arcPoints.length - 1, Math.floor(arcPoints.length * 0.7))] ?? top.clone();
+    const baselinePoint = anchor.clone().add(baselineDir.clone().multiplyScalar(radius));
+    const boardPoint = anchor.clone().add(boardDir.clone().multiplyScalar(radius));
+    const labelPoint = arcPoints[Math.min(arcPoints.length - 1, Math.floor(arcPoints.length * 0.7))] ?? boardPoint.clone();
 
     return {
       actualAngle,
       arcPoints,
-      verticalPoint,
-      topPoint: top,
+      baselinePoint,
+      boardPoint,
       labelPoint,
     };
   }, [anchor, top, metrics.height]);
 
   if (!anchor || !angleData) return null;
 
-  const { actualAngle, arcPoints, verticalPoint, topPoint, labelPoint } = angleData;
+  const { actualAngle, arcPoints, baselinePoint, boardPoint, labelPoint } = angleData;
 
   return (
     <group>
-      <Line points={[anchor, verticalPoint]} color="#38bdf8" lineWidth={1.6} />
-      <Line points={[anchor, topPoint]} color="#f97316" lineWidth={2.2} />
+      <Line points={[anchor, baselinePoint]} color="#38bdf8" lineWidth={1.6} />
+      <Line points={[anchor, boardPoint]} color="#f97316" lineWidth={2.2} />
       <Line points={arcPoints} color="#38bdf8" lineWidth={1.4} />
       <DreiText
         position={labelPoint}
@@ -521,7 +526,7 @@ export function Visualization3D() {
         />
         <pointLight position={[-3, 2, -2]} intensity={0.35} />
 
-        <group rotation={[0, Math.PI / numberOfSides - Math.PI / 2, 0]} position={[0, -metrics.height * 0.04, 0]}>
+        <group rotation={[Math.PI, Math.PI / numberOfSides - Math.PI / 2, 0]} position={[0, metrics.height * 0.04, 0]}>
           <FinalAssembly boards={boards} woodTexture={woodTexture} explode={explode} />
 
           {boards.length > 0 && (
@@ -547,7 +552,7 @@ export function Visualization3D() {
           <mesh
             receiveShadow
             rotation={[-Math.PI / 2, 0, 0]}
-            position={[0, -metrics.height * 0.02 - 0.001, 0]}
+            position={[0, metrics.height * 0.02 + 0.001, 0]}
           >
             <planeGeometry args={[5, 5]} />
             <meshStandardMaterial color="#0b1220" roughness={0.9} metalness={0} />

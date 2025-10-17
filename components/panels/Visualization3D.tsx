@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Text as DreiText } from '@react-three/drei';
+import { OrbitControls, Text as DreiText, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { useCalculatorStore } from '@/lib/store';
@@ -271,6 +271,76 @@ function DimensionLabels({ boards, angle, metrics }: { boards: BoardInstance[]; 
   );
 }
 
+function SideAngleHighlight({
+  metrics,
+  sideAngle,
+  board,
+  explode,
+}: {
+  metrics: SceneMetrics;
+  sideAngle: number;
+  board: BoardInstance | null;
+  explode: number;
+}) {
+  const angleRad = THREE.MathUtils.degToRad(Math.max(sideAngle, 0.01));
+  const anchor = useMemo(() => new THREE.Vector3(metrics.outerBottomRadius, 0, 0), [metrics.outerBottomRadius]);
+  const verticalPoint = useMemo(
+    () => new THREE.Vector3(metrics.outerBottomRadius, metrics.height, 0),
+    [metrics.outerBottomRadius, metrics.height]
+  );
+  const slopePoint = useMemo(
+    () => new THREE.Vector3(metrics.outerTopRadius, metrics.height, 0),
+    [metrics.outerTopRadius, metrics.height]
+  );
+
+  const arcPoints = useMemo(() => {
+    const extent = Math.abs(metrics.outerBottomRadius - metrics.outerTopRadius);
+    const radius = Math.max(metrics.height * 0.25, extent * 2 + metrics.height * 0.15);
+    const segments = 32;
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i <= segments; i++) {
+      const t = angleRad * (i / segments);
+      const x = anchor.x - Math.sin(t) * radius;
+      const y = anchor.y + Math.cos(t) * radius;
+      pts.push(new THREE.Vector3(x, y, anchor.z));
+    }
+    return pts;
+  }, [anchor, angleRad, metrics.height, metrics.outerBottomRadius, metrics.outerTopRadius]);
+
+  const explodeOffset = useMemo(() => {
+    if (!board) return new THREE.Vector3();
+    const [nx, ny, nz] = board.explodeNormal;
+    return new THREE.Vector3(nx, ny, nz).multiplyScalar(explode);
+  }, [board, explode]);
+
+  const translatePoint = useCallback((point: THREE.Vector3) => point.clone().add(explodeOffset), [explodeOffset]);
+  const translatedArc = useMemo(() => arcPoints.map(translatePoint), [arcPoints, translatePoint]);
+  const translatedAnchor = useMemo(() => translatePoint(anchor), [translatePoint, anchor]);
+  const translatedVertical = useMemo(() => translatePoint(verticalPoint), [translatePoint, verticalPoint]);
+  const translatedSlope = useMemo(() => translatePoint(slopePoint), [translatePoint, slopePoint]);
+  const labelPosition = useMemo(
+    () => translatedArc[Math.floor(translatedArc.length * 0.6)] ?? translatedSlope,
+    [translatedArc, translatedSlope]
+  );
+
+  return (
+    <group>
+      <Line points={[translatedAnchor, translatedVertical]} color="#38bdf8" lineWidth={1.6} />
+      <Line points={[translatedAnchor, translatedSlope]} color="#f97316" lineWidth={2.2} />
+      <Line points={translatedArc} color="#38bdf8" lineWidth={1.4} />
+      <DreiText
+        position={labelPosition}
+        fontSize={metrics.height * 0.075}
+        color="#e0f2fe"
+        anchorX="center"
+        anchorY="bottom"
+      >
+        α {sideAngle.toFixed(1)}°
+      </DreiText>
+    </group>
+  );
+}
+
 export function Visualization3D() {
   const {
     numberOfSides,
@@ -379,6 +449,15 @@ export function Visualization3D() {
 
         <group rotation={[0, Math.PI / numberOfSides, 0]} position={[0, -metrics.height * 0.02, 0]}>
           <FinalAssembly boards={boards} woodTexture={woodTexture} explode={explode} />
+
+          {boards.length > 0 && (
+            <SideAngleHighlight
+              metrics={metrics}
+              sideAngle={sideAngle}
+              board={boards[0]}
+              explode={explode}
+            />
+          )}
 
           {showRims && (
             <>

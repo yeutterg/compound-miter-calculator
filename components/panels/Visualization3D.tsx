@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { useCalculatorStore } from '@/lib/store';
 import { calculateAngles } from '@/lib/calculations/angles';
-import { toMillimeters, formatNumber, getUnitLabel } from '@/lib/utils/unitConversions';
+import { toMillimeters, formatNumber, getUnitLabel, type LengthUnit } from '@/lib/utils/unitConversions';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -79,7 +79,7 @@ function computeSceneMetrics(
   diameter: number,
   thickness: number,
   sideAngle: number,
-  lengthUnit: string
+  lengthUnit: LengthUnit
 ): SceneMetrics {
   const heightMm = Math.max(20, toMillimeters(height, lengthUnit));
   const diameterMm = Math.max(20, toMillimeters(diameter, lengthUnit));

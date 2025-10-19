@@ -92,12 +92,14 @@ function SawSetupDiagram({ miterGauge, bladeTilt }: { miterGauge: number; bladeT
   const clampedGauge = Math.max(-gaugeSpan, Math.min(gaugeSpan, miterGauge));
   const throatWidth = topSize * 0.12;
   const fenceY = topCenter - topSize * 0.42;
-  const gaugeArc = describeArc(topCenter, topCenter, gaugeRadius, baseAngle - gaugeSpan, baseAngle + gaugeSpan);
+  const gaugeCenterX = topCenter;
+  const gaugeCenterY = topCenter - topSize * 0.08;
+  const gaugeArc = describeArc(gaugeCenterX, gaugeCenterY, gaugeRadius, baseAngle - gaugeSpan, baseAngle + gaugeSpan);
   const gaugeTicks = Array.from({ length: (gaugeSpan * 2) / 5 + 1 }, (_, idx) => -gaugeSpan + idx * 5);
   const pointerAngle = baseAngle + clampedGauge;
-  const gaugePointerInner = polarToCartesian(topCenter, topCenter, gaugeRadius - 16, pointerAngle);
-  const gaugePointerOuter = polarToCartesian(topCenter, topCenter, gaugeRadius + 22, pointerAngle);
-  const pointerLabel = polarToCartesian(topCenter, topCenter, gaugeRadius + 44, pointerAngle);
+  const gaugePointerInner = polarToCartesian(gaugeCenterX, gaugeCenterY, gaugeRadius - 16, pointerAngle);
+  const gaugePointerOuter = polarToCartesian(gaugeCenterX, gaugeCenterY, gaugeRadius + 22, pointerAngle);
+  const pointerLabel = polarToCartesian(gaugeCenterX, gaugeCenterY, gaugeRadius + 44, pointerAngle);
 
   const bevelWidth = 260;
   const bevelHeight = 150;
@@ -127,9 +129,9 @@ function SawSetupDiagram({ miterGauge, bladeTilt }: { miterGauge: number; bladeT
           {gaugeTicks.map((tickAngle) => {
             const actualAngle = baseAngle + tickAngle;
             const isMajor = tickAngle % 15 === 0;
-            const inner = polarToCartesian(topCenter, topCenter, gaugeRadius - (isMajor ? 12 : 7), actualAngle);
-            const outer = polarToCartesian(topCenter, topCenter, gaugeRadius + (isMajor ? 16 : 10), actualAngle);
-            const labelPos = polarToCartesian(topCenter, topCenter, gaugeRadius + 28, actualAngle);
+            const inner = polarToCartesian(gaugeCenterX, gaugeCenterY, gaugeRadius - (isMajor ? 12 : 7), actualAngle);
+            const outer = polarToCartesian(gaugeCenterX, gaugeCenterY, gaugeRadius + (isMajor ? 16 : 10), actualAngle);
+            const labelPos = polarToCartesian(gaugeCenterX, gaugeCenterY, gaugeRadius + 28, actualAngle);
             return (
               <g key={`tick-${tickAngle}`}>
                 <line x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="#cbd5f5" strokeWidth={isMajor ? 2 : 1} />
@@ -142,15 +144,8 @@ function SawSetupDiagram({ miterGauge, bladeTilt }: { miterGauge: number; bladeT
             );
           })}
           <line x1={gaugePointerInner.x} y1={gaugePointerInner.y} x2={gaugePointerOuter.x} y2={gaugePointerOuter.y} stroke="#38bdf8" strokeWidth={3} strokeLinecap="round" />
-          <polygon
-            points={`${gaugePointerOuter.x.toFixed(1)},${gaugePointerOuter.y.toFixed(1)} ${(gaugePointerOuter.x + 8).toFixed(1)},${(gaugePointerOuter.y + 14).toFixed(1)} ${(gaugePointerOuter.x - 8).toFixed(1)},${(gaugePointerOuter.y + 14).toFixed(1)}`}
-            fill="#38bdf8"
-          />
           <text x={pointerLabel.x} y={pointerLabel.y + 4} textAnchor="middle" className="text-[10px] fill-slate-200" dominantBaseline="hanging">
             γ {clampedGauge.toFixed(1)}°
-          </text>
-          <text x={topCenter} y={topCenter + gaugeRadius + 36} textAnchor="middle" className="text-[10px] fill-slate-400">
-            Miter scale (degrees)
           </text>
         </svg>
       </div>
@@ -181,14 +176,9 @@ function SawSetupDiagram({ miterGauge, bladeTilt }: { miterGauge: number; bladeT
             );
           })}
           <line x1={bevelPointerInner.x} y1={bevelPointerInner.y} x2={bevelPointerOuter.x} y2={bevelPointerOuter.y} stroke="#fbbf24" strokeWidth={4.5} strokeLinecap="round" />
-          <polygon
-            points={`${bevelPointerOuter.x.toFixed(1)},${bevelPointerOuter.y.toFixed(1)} ${(bevelPointerOuter.x - 9).toFixed(1)},${(bevelPointerOuter.y + 14).toFixed(1)} ${(bevelPointerOuter.x + 9).toFixed(1)},${(bevelPointerOuter.y + 14).toFixed(1)}`}
-            fill="#fbbf24"
-          />
           <text x={bevelLabel.x} y={bevelLabel.y} className="text-[10px] fill-slate-200" textAnchor="middle" dominantBaseline="middle">
             β {clampedTilt.toFixed(1)}°
           </text>
-          <circle cx={pivotX} cy={pivotY} r={8} fill="#1e293b" stroke="#fbbf24" strokeWidth={2} />
         </svg>
       </div>
     </div>

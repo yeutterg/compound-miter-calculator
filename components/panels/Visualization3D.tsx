@@ -75,7 +75,8 @@ function describeArc(cx: number, cy: number, radius: number, startAngle: number,
   const start = polarToCartesian(cx, cy, radius, endAngle);
   const end = polarToCartesian(cx, cy, radius, startAngle);
   const largeArc = Math.abs(endAngle - startAngle) <= 180 ? '0' : '1';
-  return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${radius.toFixed(2)} ${radius.toFixed(2)} 0 ${largeArc} 0 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
+  const sweep = endAngle >= startAngle ? '1' : '0';
+  return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${radius.toFixed(2)} ${radius.toFixed(2)} 0 ${largeArc} ${sweep} ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
 }
 
 function formatPolygon(points: Array<{ x: number; y: number }>) {
@@ -87,52 +88,99 @@ function SawSetupDiagram({ miterGauge, bladeTilt }: { miterGauge: number; bladeT
   const topCenter = topSize / 2;
   const boardLength = topSize * 0.78;
   const boardWidth = 28;
-  const arcRadius = topSize * 0.27;
-  const segmentAngle = Math.max(0, miterGauge);
+  const gaugeRadius = topSize * 0.34;
+  const gaugeSpan = 60;
+  const clampedGauge = Math.max(-gaugeSpan, Math.min(gaugeSpan, miterGauge));
+  const gaugeArc = describeArc(topCenter, topCenter, gaugeRadius, -gaugeSpan, gaugeSpan);
+  const gaugePointerInner = polarToCartesian(topCenter, topCenter, gaugeRadius - 12, clampedGauge);
+  const gaugePointerOuter = polarToCartesian(topCenter, topCenter, gaugeRadius + 18, clampedGauge);
+  const gaugeTicks = Array.from({ length: (gaugeSpan * 2) / 5 + 1 }, (_, idx) => -gaugeSpan + idx * 5);
+
+  const bladeRadius = topSize * 0.15;
+  const throatWidth = topSize * 0.12;
+  const fenceY = topCenter - topSize * 0.42;
 
   const bevelWidth = 240;
   const bevelHeight = 140;
   const pivotX = bevelWidth * 0.15;
   const pivotY = bevelHeight * 0.75;
   const bladeLength = bevelWidth * 0.72;
-  const bladeAngleRad = (Math.PI / 180) * Math.max(0, bladeTilt);
+  const clampedTilt = Math.max(0, Math.min(60, bladeTilt));
+  const bladeAngleRad = (Math.PI / 180) * clampedTilt;
   const bladeEndX = pivotX + Math.cos(bladeAngleRad) * bladeLength;
   const bladeEndY = pivotY - Math.sin(bladeAngleRad) * bladeLength;
-  const bevelArcRadius = bevelWidth * 0.3;
+  const bevelArcRadius = bevelWidth * 0.32;
+  const bevelTicks = Array.from({ length: 7 }, (_, idx) => idx * 10);
 
   return (
     <div className="grid gap-4 rounded-xl border border-white/5 bg-slate-950/60 p-4 text-slate-200 shadow-inner shadow-slate-900/60">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300/90">Miter Gauge γ</p>
-          <p className="text-sm font-medium text-sky-100">{miterGauge.toFixed(1)}°</p>
-        </div>
-        <svg viewBox={`0 0 ${topSize} ${topSize}`} className="w-full">
-          <defs>
-            <linearGradient id="boardFill" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#0f172a" />
-              <stop offset="100%" stopColor="#1e293b" />
-            </linearGradient>
-          </defs>
-          <circle cx={topCenter} cy={topCenter} r={topSize * 0.46} fill="#0f172a" stroke="#1f2937" strokeWidth={2} opacity={0.85} />
-          <line x1={topCenter} y1={topCenter - topSize * 0.46} x2={topCenter} y2={topCenter + topSize * 0.46} stroke="#1f2937" strokeWidth={2} strokeDasharray="6 6" />
-          <rect
-            x={topCenter - boardWidth / 2}
-            y={topCenter - boardLength / 2}
-            width={boardWidth}
-            height={boardLength}
-            rx={boardWidth * 0.18}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300/90">Miter Gauge γ</p>
+            <p className="text-sm font-medium text-sky-100">{miterGauge.toFixed(1)}°</p>
+          </div>
+          <svg viewBox={`0 0 ${topSize} ${topSize}`} className="w-full">
+            <defs>
+              <linearGradient id="boardFill" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#0f172a" />
+                <stop offset="100%" stopColor="#1e293b" />
+              </linearGradient>
+            </defs>
+          <rect x={topCenter - topSize * 0.45} y={topCenter - topSize * 0.45} width={topSize * 0.9} height={topSize * 0.9} rx={20} fill="#020617" stroke="#1e293b" strokeWidth={2.4} />
+          <path
+            d={`M ${topCenter - topSize * 0.42} ${topCenter + topSize * 0.42} L ${topCenter + topSize * 0.42} ${topCenter + topSize * 0.42} L ${topCenter + throatWidth * 0.6} ${topCenter + throatWidth * 2.3} Q ${topCenter} ${topCenter + throatWidth * 2.8} ${topCenter - throatWidth * 0.6} ${topCenter + throatWidth * 2.3} Z`}
+            fill="#111827"
+            opacity={0.9}
+          />
+          <line x1={topCenter - topSize * 0.45} y1={fenceY} x2={topCenter + topSize * 0.45} y2={fenceY} stroke="#475569" strokeWidth={6} strokeLinecap="round" />
+          <rect x={topCenter - throatWidth / 2} y={topCenter - topSize * 0.45} width={throatWidth} height={topSize * 0.9} fill="#0b1220" rx={4} />
+          <circle cx={topCenter} cy={topCenter} r={bladeRadius} fill="#0f172a" stroke="#94a3b8" strokeWidth={2} strokeDasharray="6 4" />
+          <circle cx={topCenter} cy={topCenter} r={bladeRadius * 0.68} fill="none" stroke="#facc15" strokeWidth={1.6} strokeDasharray="4 6" />
+          <path d={`M ${topCenter - gaugeRadius - 18} ${topCenter + throatWidth * 1.6} Q ${topCenter} ${topCenter + throatWidth * 3.2} ${topCenter + gaugeRadius + 18} ${topCenter + throatWidth * 1.6}`} fill="#1f2937" stroke="#334155" strokeWidth={2} />
+          <path d={gaugeArc} stroke="#1d4ed8" strokeWidth={2.6} fill="none" strokeLinecap="round" />
+          {gaugeTicks.map((tickAngle) => {
+            const isMajor = tickAngle % 15 === 0;
+            const inner = polarToCartesian(topCenter, topCenter, gaugeRadius - (isMajor ? 10 : 6), tickAngle);
+            const outer = polarToCartesian(topCenter, topCenter, gaugeRadius + (isMajor ? 14 : 8), tickAngle);
+            return (
+              <g key={`tick-${tickAngle}`}>
+                <line x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="#cbd5f5" strokeWidth={isMajor ? 2 : 1} />
+                {isMajor && (
+                  <text x={outer.x} y={outer.y + (tickAngle < 0 ? -6 : 10)} className="text-[9px] fill-sky-200" textAnchor="middle">
+                    {Math.abs(tickAngle)}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+          <line x1={gaugePointerInner.x} y1={gaugePointerInner.y} x2={gaugePointerOuter.x} y2={gaugePointerOuter.y} stroke="#38bdf8" strokeWidth={3} strokeLinecap="round" />
+          <polygon
+            points={`${gaugePointerOuter.x.toFixed(1)},${gaugePointerOuter.y.toFixed(1)} ${(gaugePointerOuter.x + 6).toFixed(1)},${(gaugePointerOuter.y + 10).toFixed(1)} ${(gaugePointerOuter.x - 6).toFixed(1)},${(gaugePointerOuter.y + 10).toFixed(1)}`}
+            fill="#38bdf8"
+            opacity={0.9}
+          />
+          <path
+            d={`M ${topCenter - boardWidth / 2} ${topCenter - boardLength / 2} L ${topCenter + boardWidth / 2} ${topCenter - boardLength / 2} L ${topCenter + boardWidth * 0.8} ${topCenter + boardLength * 0.4} L ${topCenter - boardWidth * 0.8} ${topCenter + boardLength * 0.4} Z`}
             fill="url(#boardFill)"
             stroke="#38bdf8"
             strokeWidth={2}
-            transform={`rotate(${segmentAngle} ${topCenter} ${topCenter})`}
+            transform={`rotate(${clampedGauge} ${topCenter} ${topCenter})`}
+            opacity={0.8}
           />
-          <path d={describeArc(topCenter, topCenter, arcRadius, 0, segmentAngle)} stroke="#38bdf8" strokeWidth={3} fill="none" strokeLinecap="round" />
-          <text x={topCenter + arcRadius * 0.15} y={topCenter - arcRadius * 0.7} className="text-[11px] font-semibold fill-sky-200">
-            {segmentAngle.toFixed(1)}°
+          <text x={topCenter} y={topCenter + throatWidth * 3.1} textAnchor="middle" className="text-[10px] fill-slate-300">
+            Miter scale
           </text>
-          <text x={topCenter + arcRadius * 0.15} y={topCenter - arcRadius * 0.32} className="text-[10px] fill-slate-300">
-            Pivot fence
+          <text x={topCenter + gaugeRadius * 0.26} y={topCenter - gaugeRadius * 0.85} className="text-[11px] font-semibold fill-sky-200">
+            {clampedGauge.toFixed(1)}°
+          </text>
+          <text x={topCenter + gaugeRadius * 0.26} y={topCenter - gaugeRadius * 0.55} className="text-[10px] fill-slate-300">
+            Pointer
+          </text>
+          <text x={topCenter - throatWidth * 1.4} y={fenceY - 6} className="text-[9px] fill-slate-300">
+            Fence
+          </text>
+          <text x={topCenter + throatWidth * 0.9} y={topCenter - bladeRadius - 10} className="text-[9px] fill-slate-300">
+            Blade kerf
           </text>
         </svg>
       </div>
@@ -143,18 +191,42 @@ function SawSetupDiagram({ miterGauge, bladeTilt }: { miterGauge: number; bladeT
           <p className="text-sm font-medium text-amber-100">{bladeTilt.toFixed(1)}°</p>
         </div>
         <svg viewBox={`0 0 ${bevelWidth} ${bevelHeight}`} className="w-full">
+          <rect x={0} y={0} width={bevelWidth} height={bevelHeight} fill="#020617" rx={18} stroke="#1e293b" strokeWidth={2} />
           <rect x={0} y={bevelHeight - 18} width={bevelWidth} height={18} fill="#0f172a" />
           <rect x={pivotX - 8} y={pivotY - 12} width={bevelWidth * 0.78} height={24} fill="#1e293b" rx={6} />
-          <line x1={pivotX} y1={pivotY} x2={pivotX + bevelWidth * 0.7} y2={pivotY} stroke="#1f2937" strokeWidth={3} strokeLinecap="round" />
-          <line x1={pivotX} y1={pivotY} x2={bladeEndX} y2={bladeEndY} stroke="#fbbf24" strokeWidth={4} strokeLinecap="round" />
-          <path d={describeArc(pivotX, pivotY, bevelArcRadius, 90, 90 - bladeTilt)} stroke="#fbbf24" strokeWidth={3} fill="none" strokeLinecap="round" />
-          <text x={pivotX + bevelArcRadius * 0.2} y={pivotY - bevelArcRadius * 0.4} className="text-[11px] font-semibold fill-amber-200">
-            {bladeTilt.toFixed(1)}°
+          <line x1={pivotX} y1={pivotY} x2={pivotX + bevelWidth * 0.7} y2={pivotY} stroke="#111827" strokeWidth={6} strokeLinecap="round" />
+          <path d={describeArc(pivotX, pivotY, bevelArcRadius, 90, 30)} stroke="#334155" strokeWidth={2} fill="none" strokeLinecap="round" />
+          {bevelTicks.map((tick) => {
+            const inner = polarToCartesian(pivotX, pivotY, bevelArcRadius - (tick % 20 === 0 ? 12 : 8), 90 - tick);
+            const outer = polarToCartesian(pivotX, pivotY, bevelArcRadius + (tick % 20 === 0 ? 18 : 10), 90 - tick);
+            return (
+              <g key={`bevel-${tick}`}>
+                <line x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="#fde68a" strokeWidth={tick % 20 === 0 ? 2 : 1} />
+                {tick % 20 === 0 && tick !== 0 && (
+                  <text x={outer.x} y={outer.y} className="text-[9px] fill-amber-100" textAnchor="middle" dominantBaseline="middle">
+                    {tick}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+          <line x1={pivotX} y1={pivotY} x2={bladeEndX} y2={bladeEndY} stroke="#fbbf24" strokeWidth={5} strokeLinecap="round" />
+          <circle cx={pivotX} cy={pivotY} r={8} fill="#1e293b" stroke="#fbbf24" strokeWidth={2} />
+          <polygon
+            points={`${bladeEndX.toFixed(1)},${bladeEndY.toFixed(1)} ${(bladeEndX - 8).toFixed(1)},${(bladeEndY + 12).toFixed(1)} ${(bladeEndX + 8).toFixed(1)},${(bladeEndY + 12).toFixed(1)}`}
+            fill="#fbbf24"
+          />
+          <path d={describeArc(pivotX, pivotY, bevelArcRadius, 90, 90 - clampedTilt)} stroke="#fbbf24" strokeWidth={3} fill="none" strokeLinecap="round" />
+          <text x={pivotX + bevelArcRadius * 0.3} y={pivotY - bevelArcRadius * 0.45} className="text-[11px] font-semibold fill-amber-200">
+            {clampedTilt.toFixed(1)}°
           </text>
-          <text x={pivotX + bevelArcRadius * 0.2} y={pivotY - bevelArcRadius * 0.05} className="text-[10px] fill-slate-300">
-            Tilt from horizontal
+          <text x={pivotX + bevelArcRadius * 0.3} y={pivotY - bevelArcRadius * 0.12} className="text-[10px] fill-slate-300">
+            Tilt from table
           </text>
-          <circle cx={pivotX} cy={pivotY} r={7} fill="#1e293b" stroke="#fbbf24" strokeWidth={2} />
+          <rect x={pivotX + bevelWidth * 0.55} y={pivotY - 40} width={24} height={80} rx={8} fill="#0f172a" stroke="#fbbf24" strokeWidth={2} />
+          <text x={pivotX + bevelWidth * 0.55 + 12} y={pivotY} textAnchor="middle" className="text-[9px] fill-amber-100" transform={`rotate(${-clampedTilt} ${pivotX + bevelWidth * 0.55 + 12} ${pivotY})`}>
+            Blade
+          </text>
         </svg>
       </div>
     </div>

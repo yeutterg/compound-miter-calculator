@@ -85,9 +85,8 @@ function SawSetupDiagram({ miterGauge, bladeTilt }: { miterGauge: number; bladeT
   const gaugeTicks = Array.from({ length: (gaugeSpan * 2) / 5 + 1 }, (_, idx) => -gaugeSpan + idx * 5);
   const pointerAngle = baseAngle + clampedGauge;
   const pointerInner = polarToCartesian(center, center, gaugeRadius - 12, pointerAngle);
-  const pointerOuter = polarToCartesian(center, center, gaugeRadius + 28, pointerAngle);
-  const pointerWingLeft = polarToCartesian(center, center, gaugeRadius + 38, pointerAngle - 6);
-  const pointerWingRight = polarToCartesian(center, center, gaugeRadius + 38, pointerAngle + 6);
+  const pointerOuter = polarToCartesian(center, center, gaugeRadius + 36, pointerAngle);
+  const pointerLabel = polarToCartesian(center, center, gaugeRadius + 50, pointerAngle);
 
   const bevelWidth = 240;
   const bevelHeight = 160;
@@ -98,9 +97,8 @@ function SawSetupDiagram({ miterGauge, bladeTilt }: { miterGauge: number; bladeT
   const bevelTicks = Array.from({ length: 13 }, (_, idx) => idx * 5);
   const bevelPointerAngle = 90 - clampedTilt;
   const bevelPointerInner = polarToCartesian(pivotX, pivotY, bevelRadius - 12, bevelPointerAngle);
-  const bevelPointerOuter = polarToCartesian(pivotX, pivotY, bevelRadius + 34, bevelPointerAngle);
-  const bevelWingLeft = polarToCartesian(pivotX, pivotY, bevelRadius + 46, bevelPointerAngle - 7);
-  const bevelWingRight = polarToCartesian(pivotX, pivotY, bevelRadius + 46, bevelPointerAngle + 7);
+  const bevelPointerOuter = polarToCartesian(pivotX, pivotY, bevelRadius + 44, bevelPointerAngle);
+  const bevelLabel = polarToCartesian(pivotX, pivotY, bevelRadius + 58, bevelPointerAngle);
 
   return (
     <div className="grid gap-4 rounded-xl border border-white/5 bg-slate-950/60 p-4 text-slate-200 shadow-inner shadow-slate-900/60">
@@ -115,10 +113,22 @@ function SawSetupDiagram({ miterGauge, bladeTilt }: { miterGauge: number; bladeT
             const isMajor = tickAngle % 15 === 0;
             const inner = polarToCartesian(center, center, gaugeRadius - (isMajor ? 12 : 7), actualAngle);
             const outer = polarToCartesian(center, center, gaugeRadius + (isMajor ? 16 : 9), actualAngle);
-            return <line key={`tick-${tickAngle}`} x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="#cbd5f5" strokeWidth={isMajor ? 2 : 1} />;
+            const labelPos = polarToCartesian(center, center, gaugeRadius + 30, actualAngle);
+            return (
+              <g key={`tick-${tickAngle}`}>
+                <line x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="#cbd5f5" strokeWidth={isMajor ? 2 : 1} />
+                {isMajor && (
+                  <text x={labelPos.x} y={labelPos.y} className="text-[9px] fill-sky-200" textAnchor="middle" dominantBaseline="middle">
+                    {Math.abs(tickAngle)}
+                  </text>
+                )}
+              </g>
+            );
           })}
           <line x1={pointerInner.x} y1={pointerInner.y} x2={pointerOuter.x} y2={pointerOuter.y} stroke="#38bdf8" strokeWidth={4} strokeLinecap="round" />
-          <polygon points={`${pointerOuter.x.toFixed(1)},${pointerOuter.y.toFixed(1)} ${pointerWingLeft.x.toFixed(1)},${pointerWingLeft.y.toFixed(1)} ${pointerWingRight.x.toFixed(1)},${pointerWingRight.y.toFixed(1)}`} fill="#38bdf8" />
+          <text x={pointerLabel.x} y={pointerLabel.y} className="text-[10px] fill-slate-200" textAnchor="middle" dominantBaseline="middle">
+            γ {clampedGauge.toFixed(1)}°
+          </text>
         </svg>
       </div>
 
@@ -133,10 +143,22 @@ function SawSetupDiagram({ miterGauge, bladeTilt }: { miterGauge: number; bladeT
             const tickAngle = 90 - tick;
             const inner = polarToCartesian(pivotX, pivotY, bevelRadius - (isMajor ? 16 : 10), tickAngle);
             const outer = polarToCartesian(pivotX, pivotY, bevelRadius + (isMajor ? 20 : 11), tickAngle);
-            return <line key={`bevel-${tick}`} x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="#fde68a" strokeWidth={isMajor ? 2 : 1} />;
+            const labelPos = polarToCartesian(pivotX, pivotY, bevelRadius + 32, tickAngle);
+            return (
+              <g key={`bevel-${tick}`}>
+                <line x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="#fde68a" strokeWidth={isMajor ? 2 : 1} />
+                {isMajor && (
+                  <text x={labelPos.x} y={labelPos.y} className="text-[9px] fill-amber-100" textAnchor="middle" dominantBaseline="middle">
+                    {tick}
+                  </text>
+                )}
+              </g>
+            );
           })}
           <line x1={bevelPointerInner.x} y1={bevelPointerInner.y} x2={bevelPointerOuter.x} y2={bevelPointerOuter.y} stroke="#fbbf24" strokeWidth={4} strokeLinecap="round" />
-          <polygon points={`${bevelPointerOuter.x.toFixed(1)},${bevelPointerOuter.y.toFixed(1)} ${bevelWingLeft.x.toFixed(1)},${bevelWingLeft.y.toFixed(1)} ${bevelWingRight.x.toFixed(1)},${bevelWingRight.y.toFixed(1)}`} fill="#fbbf24" />
+          <text x={bevelLabel.x} y={bevelLabel.y} className="text-[10px] fill-slate-200" textAnchor="middle" dominantBaseline="middle">
+            β {clampedTilt.toFixed(1)}°
+          </text>
         </svg>
       </div>
     </div>

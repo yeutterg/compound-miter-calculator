@@ -89,13 +89,13 @@ function SawSetupDiagram({
   const gaugeRadius = topSize * 0.34;
   const baseAngle = 180;
   const gaugeSpan = 60;
+  const clampSpan = (value: number) => Math.max(-gaugeSpan, Math.min(gaugeSpan, value));
   const useComplement = miterGauge > gaugeSpan;
-  const primaryClamped = Math.max(0, Math.min(gaugeSpan, miterGauge));
-  const complementClamped = Math.max(0, Math.min(gaugeSpan, miterGaugeComplement));
-  const displayValue = useComplement ? complementClamped : -primaryClamped;
+  const rawValue = useComplement ? miterGaugeComplement : miterGauge;
+  const displayValue = clampSpan(rawValue);
   const displayLabel = `${displayValue >= 0 ? '+' : ''}${displayValue.toFixed(1)}°`;
   const gaugeTicks = Array.from({ length: (gaugeSpan * 2) / 5 + 1 }, (_, idx) => -gaugeSpan + idx * 5);
-  const pointerAngle = baseAngle + displayValue;
+  const pointerAngle = baseAngle - displayValue;
   const pointerOuterRadius = gaugeRadius + 36;
   const pointerInner = polarToCartesian(center, center, gaugeRadius - 12, pointerAngle);
   const pointerOuter = polarToCartesian(center, center, pointerOuterRadius, pointerAngle);

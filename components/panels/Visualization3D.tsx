@@ -88,25 +88,25 @@ function SawSetupDiagram({
   const center = topSize / 2;
   const gaugeRadius = topSize * 0.34;
   const baseAngle = 180;
-  const baseGaugeSpan = 60;
-  const useObtuse = bladeTilt > 60;
-  const displayMiter = useObtuse ? 90 + miterGaugeComplement : miterGauge;
-  const pointerSpanTarget = Math.abs(displayMiter);
-  const gaugeSpan = Math.max(baseGaugeSpan, Math.min(180, Math.ceil(pointerSpanTarget / 5) * 5));
+  const gaugeSpan = 60;
+  const useComplement = bladeTilt > 60;
+  const rawDisplay = useComplement ? Math.max(0, miterGaugeComplement) : miterGauge;
+  const displayValue = Math.max(-gaugeSpan, Math.min(gaugeSpan, rawDisplay));
   const gaugeTicks = Array.from({ length: (gaugeSpan * 2) / 5 + 1 }, (_, idx) => -gaugeSpan + idx * 5);
-  const pointerValue = Math.max(-gaugeSpan, Math.min(gaugeSpan, displayMiter));
-  const pointerAngle = baseAngle + pointerValue;
-  const pointerOuterRadius = gaugeRadius + (useObtuse ? 28 : 36);
+  const pointerAngle = baseAngle + displayValue;
+  const pointerOuterRadius = gaugeRadius + 36;
   const pointerInner = polarToCartesian(center, center, gaugeRadius - 12, pointerAngle);
   const pointerOuter = polarToCartesian(center, center, pointerOuterRadius, pointerAngle);
-  const pointerLabelRadius = gaugeRadius + (useObtuse ? 42 : 50);
+  const pointerLabelRadius = gaugeRadius + 50;
   const pointerLabelRaw = polarToCartesian(center, center, pointerLabelRadius, pointerAngle);
   const labelMargin = topSize * 0.06;
   const pointerLabel = {
     x: Math.max(labelMargin, Math.min(topSize - labelMargin, pointerLabelRaw.x)),
     y: Math.max(labelMargin, Math.min(topSize - labelMargin, pointerLabelRaw.y)),
   };
-  const pointerLabelText = useObtuse ? `γ obtuse ${displayMiter.toFixed(1)}°` : `γ ${displayMiter.toFixed(1)}°`;
+  const pointerLabelText = useComplement
+    ? `γ from square ${displayValue.toFixed(1)}°`
+    : `γ ${displayValue.toFixed(1)}°`;
 
   const bevelWidth = 240;
   const bevelHeight = 160;
@@ -125,7 +125,7 @@ function SawSetupDiagram({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300/90">Miter Gauge γ</p>
-          <p className="text-sm font-medium text-sky-100">{displayMiter.toFixed(1)}°</p>
+          <p className="text-sm font-medium text-sky-100">{displayValue.toFixed(1)}°</p>
         </div>
         <svg viewBox={`0 0 ${topSize} ${topSize}`} className="w-full">
           {gaugeTicks.map((tickAngle) => {

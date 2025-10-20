@@ -96,20 +96,13 @@ function SawSetupDiagram({
   const useComplement = miterGauge > limit;
   const rawValue = useComplement ? miterGaugeComplement : -miterGauge;
   const displayValue = clampSpan(rawValue);
-  const displayLabel = `${displayValue > 0 ? '+' : ''}${displayValue.toFixed(1)}°`;
   const gaugeTicks = Array.from({ length: (gaugeSpan * 2) / 5 + 1 }, (_, idx) => -gaugeSpan + idx * 5);
   const pointerAngle = baseAngle - displayValue;
   const pointerOuterRadius = gaugeRadius + 36;
   const pointerInner = polarToCartesian(center, center, gaugeRadius - 12, pointerAngle);
   const pointerOuter = polarToCartesian(center, center, pointerOuterRadius, pointerAngle);
-  const pointerLabelRadius = gaugeRadius + 50;
-  const pointerLabelRaw = polarToCartesian(center, center, pointerLabelRadius, pointerAngle);
-  const labelMargin = topSize * 0.06;
-  const pointerLabel = {
-    x: Math.max(labelMargin, Math.min(topSize - labelMargin, pointerLabelRaw.x)),
-    y: Math.max(labelMargin, Math.min(topSize - labelMargin, pointerLabelRaw.y)),
-  };
-  const pointerLabelText = useComplement ? `γ from square ${displayLabel}` : `γ ${displayLabel}`;
+  const primaryLabel = `${miterGauge.toFixed(1)}°`;
+  const complementLabel = `${miterGaugeComplement >= 0 ? '+' : ''}${miterGaugeComplement.toFixed(1)}°`;
 
   const bevelWidth = 240;
   const bevelHeight = 160;
@@ -128,7 +121,10 @@ function SawSetupDiagram({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300/90">Miter Gauge γ</p>
-          <p className="text-sm font-medium text-sky-100">{displayLabel}</p>
+          <div className="text-right leading-tight">
+            <p className="text-sm font-semibold text-sky-100">γ {primaryLabel}</p>
+            <p className="text-xs font-medium text-sky-200">Complement {complementLabel}</p>
+          </div>
         </div>
         <svg viewBox={`0 0 ${topSize} ${topSize}`} className="w-full">
           {gaugeTicks.map((tickAngle) => {
@@ -149,9 +145,6 @@ function SawSetupDiagram({
             );
           })}
           <line x1={pointerInner.x} y1={pointerInner.y} x2={pointerOuter.x} y2={pointerOuter.y} stroke="#38bdf8" strokeWidth={4} strokeLinecap="round" />
-          <text x={pointerLabel.x} y={pointerLabel.y} className="text-[10px] fill-slate-200" textAnchor="middle" dominantBaseline="middle">
-            {pointerLabelText}
-          </text>
         </svg>
       </div>
 

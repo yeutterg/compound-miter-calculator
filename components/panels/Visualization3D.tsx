@@ -75,18 +75,38 @@ function formatPolygon(points: Array<{ x: number; y: number }>) {
   return points.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
 }
 
-function SawSetupDiagram({ miterGauge, bladeTilt }: { miterGauge: number; bladeTilt: number }) {
+function SawSetupDiagram({
+  miterGauge,
+  miterGaugeComplement,
+  bladeTilt,
+}: {
+  miterGauge: number;
+  miterGaugeComplement: number;
+  bladeTilt: number;
+}) {
   const topSize = 220;
   const center = topSize / 2;
   const gaugeRadius = topSize * 0.34;
-  const gaugeSpan = 60;
   const baseAngle = 180;
-  const clampedGauge = Math.max(-gaugeSpan, Math.min(gaugeSpan, miterGauge));
+  const baseGaugeSpan = 60;
+  const useObtuse = bladeTilt > 60;
+  const displayMiter = useObtuse ? 90 + miterGaugeComplement : miterGauge;
+  const pointerSpanTarget = Math.abs(displayMiter);
+  const gaugeSpan = Math.max(baseGaugeSpan, Math.min(180, Math.ceil(pointerSpanTarget / 5) * 5));
   const gaugeTicks = Array.from({ length: (gaugeSpan * 2) / 5 + 1 }, (_, idx) => -gaugeSpan + idx * 5);
-  const pointerAngle = baseAngle + clampedGauge;
+  const pointerValue = Math.max(-gaugeSpan, Math.min(gaugeSpan, displayMiter));
+  const pointerAngle = baseAngle + pointerValue;
+  const pointerOuterRadius = gaugeRadius + (useObtuse ? 28 : 36);
   const pointerInner = polarToCartesian(center, center, gaugeRadius - 12, pointerAngle);
-  const pointerOuter = polarToCartesian(center, center, gaugeRadius + 36, pointerAngle);
-  const pointerLabel = polarToCartesian(center, center, gaugeRadius + 50, pointerAngle);
+  const pointerOuter = polarToCartesian(center, center, pointerOuterRadius, pointerAngle);
+  const pointerLabelRadius = gaugeRadius + (useObtuse ? 42 : 50);
+  const pointerLabelRaw = polarToCartesian(center, center, pointerLabelRadius, pointerAngle);
+  const labelMargin = topSize * 0.06;
+  const pointerLabel = {
+    x: Math.max(labelMargin, Math.min(topSize - labelMargin, pointerLabelRaw.x)),
+    y: Math.max(labelMargin, Math.min(topSize - labelMargin, pointerLabelRaw.y)),
+  };
+  const pointerLabelText = useObtuse ? `γ obtuse ${displayMiter.toFixed(1)}°` : `γ ${displayMiter.toFixed(1)}°`;
 
   const bevelWidth = 240;
   const bevelHeight = 160;
@@ -101,11 +121,11 @@ function SawSetupDiagram({ miterGauge, bladeTilt }: { miterGauge: number; bladeT
   const bevelLabel = polarToCartesian(pivotX, pivotY, bevelRadius + 58, bevelPointerAngle);
 
   return (
-    <div className="grid gap-4 rounded-xl border border-white/5 bg-slate-950/60 p-4 text-slate-200 shadow-inner shadow-slate-900/60">
-      <div className="space-y-3">
+    <div className="grid gap-6 rounded-xl border border-white/5 bg-slate-950/60 p-6 text-slate-200 shadow-inner shadow-slate-900/60">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300/90">Miter Gauge γ</p>
-          <p className="text-sm font-medium text-sky-100">{miterGauge.toFixed(1)}°</p>
+          <p className="text-sm font-medium text-sky-100">{displayMiter.toFixed(1)}°</p>
         </div>
         <svg viewBox={`0 0 ${topSize} ${topSize}`} className="w-full">
           {gaugeTicks.map((tickAngle) => {
@@ -127,7 +147,7 @@ function SawSetupDiagram({ miterGauge, bladeTilt }: { miterGauge: number; bladeT
           })}
           <line x1={pointerInner.x} y1={pointerInner.y} x2={pointerOuter.x} y2={pointerOuter.y} stroke="#38bdf8" strokeWidth={4} strokeLinecap="round" />
           <text x={pointerLabel.x} y={pointerLabel.y} className="text-[10px] fill-slate-200" textAnchor="middle" dominantBaseline="middle">
-            γ {clampedGauge.toFixed(1)}°
+            {pointerLabelText}
           </text>
         </svg>
       </div>
@@ -367,7 +387,11 @@ export function Visualization3D() {
               Match both diagrams to set your saw: rotate the miter gauge to γ and tilt the blade to β. Values update instantly as you adjust inputs.
             </p>
           </div>
-          <SawSetupDiagram miterGauge={angles.miterGauge} bladeTilt={angles.bladeTilt} />
+          <SawSetupDiagram
+            miterGauge={angles.miterGauge}
+            miterGaugeComplement={angles.miterGaugeComplement}
+            bladeTilt={angles.bladeTilt}
+          />
         </div>
 
         <div className="space-y-6">

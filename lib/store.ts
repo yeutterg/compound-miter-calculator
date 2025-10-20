@@ -16,6 +16,7 @@ export interface CalculatorState {
   lengthUnit: LengthUnit;
   includeWaste: boolean;
   applyDrainage: boolean; // For planters
+  miterGaugeLimit: number;
 
   // Actions
   setNumberOfSides: (value: number) => void;
@@ -28,6 +29,7 @@ export interface CalculatorState {
   setLengthUnit: (value: LengthUnit) => void;
   setIncludeWaste: (value: boolean) => void;
   setApplyDrainage: (value: boolean) => void;
+  setMiterGaugeLimit: (value: number) => void;
   reset: () => void;
 }
 
@@ -43,6 +45,7 @@ const defaultValues = {
   lengthUnit: 'inches' as LengthUnit,
   includeWaste: false,
   applyDrainage: false,
+  miterGaugeLimit: 60,
 };
 
 export const useCalculatorStore = create<CalculatorState>()(
@@ -64,6 +67,10 @@ export const useCalculatorStore = create<CalculatorState>()(
       setLengthUnit: (value) => set({ lengthUnit: value }),
       setIncludeWaste: (value) => set({ includeWaste: value }),
       setApplyDrainage: (value) => set({ applyDrainage: value }),
+      setMiterGaugeLimit: (value) =>
+        set({
+          miterGaugeLimit: Math.max(45, Math.min(60, Math.round(value / 5) * 5)),
+        }),
       reset: () => set(defaultValues),
     }),
     {
@@ -80,6 +87,7 @@ export const useCalculatorStore = create<CalculatorState>()(
         projectType: state.projectType,
         includeWaste: state.includeWaste,
         applyDrainage: state.applyDrainage,
+        miterGaugeLimit: state.miterGaugeLimit,
       }),
     }
   )

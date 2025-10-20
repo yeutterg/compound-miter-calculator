@@ -79,21 +79,24 @@ function SawSetupDiagram({
   miterGauge,
   miterGaugeComplement,
   bladeTilt,
+  miterGaugeLimit,
 }: {
   miterGauge: number;
   miterGaugeComplement: number;
   bladeTilt: number;
+  miterGaugeLimit: number;
 }) {
   const topSize = 220;
   const center = topSize / 2;
   const gaugeRadius = topSize * 0.34;
   const baseAngle = 180;
-  const gaugeSpan = 60;
-  const clampSpan = (value: number) => Math.max(-gaugeSpan, Math.min(gaugeSpan, value));
-  const useComplement = miterGauge > gaugeSpan;
-  const rawValue = useComplement ? miterGaugeComplement : miterGauge;
+  const limit = Math.max(45, Math.min(60, Math.round(miterGaugeLimit / 5) * 5));
+  const gaugeSpan = limit;
+  const clampSpan = (value: number) => Math.max(-limit, Math.min(limit, value));
+  const useComplement = miterGauge > limit;
+  const rawValue = useComplement ? miterGaugeComplement : -miterGauge;
   const displayValue = clampSpan(rawValue);
-  const displayLabel = `${displayValue >= 0 ? '+' : ''}${displayValue.toFixed(1)}°`;
+  const displayLabel = `${displayValue > 0 ? '+' : ''}${displayValue.toFixed(1)}°`;
   const gaugeTicks = Array.from({ length: (gaugeSpan * 2) / 5 + 1 }, (_, idx) => -gaugeSpan + idx * 5);
   const pointerAngle = baseAngle - displayValue;
   const pointerOuterRadius = gaugeRadius + 36;
@@ -129,7 +132,7 @@ function SawSetupDiagram({
         </div>
         <svg viewBox={`0 0 ${topSize} ${topSize}`} className="w-full">
           {gaugeTicks.map((tickAngle) => {
-            const actualAngle = baseAngle + tickAngle;
+            const actualAngle = baseAngle - tickAngle;
             const isMajor = tickAngle % 15 === 0;
             const inner = polarToCartesian(center, center, gaugeRadius - (isMajor ? 12 : 7), actualAngle);
             const outer = polarToCartesian(center, center, gaugeRadius + (isMajor ? 16 : 9), actualAngle);
@@ -139,7 +142,7 @@ function SawSetupDiagram({
                 <line x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="#cbd5f5" strokeWidth={isMajor ? 2 : 1} />
                 {isMajor && (
                   <text x={labelPos.x} y={labelPos.y} className="text-[9px] fill-sky-200" textAnchor="middle" dominantBaseline="middle">
-                    {Math.abs(tickAngle)}
+                    {tickAngle > 0 ? `+${tickAngle}` : tickAngle}
                   </text>
                 )}
               </g>
@@ -359,6 +362,7 @@ export function Visualization3D() {
     diameter,
     thickness,
     lengthUnit,
+    miterGaugeLimit,
   } = useCalculatorStore();
 
   const metrics = useMemo(
@@ -391,6 +395,7 @@ export function Visualization3D() {
             miterGauge={angles.miterGauge}
             miterGaugeComplement={angles.miterGaugeComplement}
             bladeTilt={angles.bladeTilt}
+            miterGaugeLimit={miterGaugeLimit}
           />
         </div>
 

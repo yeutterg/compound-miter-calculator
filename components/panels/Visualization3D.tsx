@@ -89,9 +89,11 @@ function SawSetupDiagram({
   const gaugeRadius = topSize * 0.34;
   const baseAngle = 180;
   const gaugeSpan = 60;
-  const useComplement = bladeTilt > 60;
-  const rawDisplay = useComplement ? Math.max(0, miterGaugeComplement) : miterGauge;
-  const displayValue = Math.max(-gaugeSpan, Math.min(gaugeSpan, rawDisplay));
+  const useComplement = miterGauge > gaugeSpan;
+  const primaryClamped = Math.max(0, Math.min(gaugeSpan, miterGauge));
+  const complementClamped = Math.max(0, Math.min(gaugeSpan, miterGaugeComplement));
+  const displayValue = useComplement ? complementClamped : -primaryClamped;
+  const displayLabel = `${displayValue >= 0 ? '+' : ''}${displayValue.toFixed(1)}°`;
   const gaugeTicks = Array.from({ length: (gaugeSpan * 2) / 5 + 1 }, (_, idx) => -gaugeSpan + idx * 5);
   const pointerAngle = baseAngle + displayValue;
   const pointerOuterRadius = gaugeRadius + 36;
@@ -104,9 +106,7 @@ function SawSetupDiagram({
     x: Math.max(labelMargin, Math.min(topSize - labelMargin, pointerLabelRaw.x)),
     y: Math.max(labelMargin, Math.min(topSize - labelMargin, pointerLabelRaw.y)),
   };
-  const pointerLabelText = useComplement
-    ? `γ from square ${displayValue.toFixed(1)}°`
-    : `γ ${displayValue.toFixed(1)}°`;
+  const pointerLabelText = useComplement ? `γ from square ${displayLabel}` : `γ ${displayLabel}`;
 
   const bevelWidth = 240;
   const bevelHeight = 160;
@@ -125,7 +125,7 @@ function SawSetupDiagram({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300/90">Miter Gauge γ</p>
-          <p className="text-sm font-medium text-sky-100">{displayValue.toFixed(1)}°</p>
+          <p className="text-sm font-medium text-sky-100">{displayLabel}</p>
         </div>
         <svg viewBox={`0 0 ${topSize} ${topSize}`} className="w-full">
           {gaugeTicks.map((tickAngle) => {

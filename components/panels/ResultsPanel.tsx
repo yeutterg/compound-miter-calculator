@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { Copy, Check, Info, ArrowUpDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import {
   Tooltip,
   TooltipContent,
@@ -33,6 +35,7 @@ export function ResultsPanel() {
     lengthUnit,
     includeWaste,
     miterGaugeLimit,
+    setMiterGaugeLimit,
   } = useCalculatorStore();
 
   // Convert inputs to millimeters (base unit for calculations)
@@ -139,12 +142,36 @@ export function ResultsPanel() {
       <CardContent className="space-y-4 sm:space-y-6">
         {/* Saw Settings Group - Side by Side */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-muted-foreground">Saw Settings</h3>
-            <span className="text-xs text-muted-foreground">
-              Miter gauge limit: <span className="font-semibold">{miterGaugeLimit}°</span>
-            </span>
+          <h3 className="text-sm font-medium text-muted-foreground">Saw Settings</h3>
+
+          {/* Miter Gauge Limit Slider */}
+          <div className="space-y-2 rounded-lg border border-border/40 bg-muted/10 p-3">
+            <div className="flex items-baseline justify-between">
+              <Label htmlFor="miterGaugeLimit" className="text-xs font-medium">
+                Miter gauge limit
+              </Label>
+              <span className="text-sm font-semibold text-muted-foreground">
+                {miterGaugeLimit}°
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground font-medium">45°</span>
+              <Slider
+                id="miterGaugeLimit"
+                min={45}
+                max={60}
+                step={5}
+                value={[miterGaugeLimit]}
+                onValueChange={([value]) => setMiterGaugeLimit(value)}
+                className="flex-1"
+              />
+              <span className="text-xs text-muted-foreground font-medium">60°</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Maximum travel of your saw&apos;s miter gauge. Auto-switches to complement when exceeded.
+            </p>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <AngleCard
               symbol="γ"

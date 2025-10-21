@@ -27,7 +27,6 @@ export function InputPanel() {
     thickness,
     lengthUnit,
     includeWaste,
-    miterGaugeLimit,
     setNumberOfSides,
     setSideAngle,
     setHeight,
@@ -35,7 +34,6 @@ export function InputPanel() {
     setThickness,
     setLengthUnit,
     setIncludeWaste,
-    setMiterGaugeLimit,
   } = useCalculatorStore();
 
   const isImperial = lengthUnit === 'inches' || lengthUnit === 'feet';
@@ -305,38 +303,6 @@ export function InputPanel() {
             <Label htmlFor="includeWaste" className="cursor-pointer font-normal">
               Add 10% waste to material estimate
             </Label>
-          </div>
-        </div>
-
-        {/* Saw Settings */}
-        <div className="space-y-3 pt-4 border-t">
-          <h3 className="text-sm font-medium">Saw Settings</h3>
-          <div className="space-y-3 rounded-lg border border-border/40 bg-muted/10 p-4">
-            <div className="flex items-baseline justify-between">
-              <Label htmlFor="miterGaugeLimit" className="font-medium">
-                Miter gauge limit
-              </Label>
-              <span className="text-sm font-semibold text-muted-foreground">
-                {miterGaugeLimit}°
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground font-medium">45°</span>
-              <Slider
-                id="miterGaugeLimit"
-                min={45}
-                max={60}
-                step={5}
-                value={[miterGaugeLimit]}
-                onValueChange={([value]) => setMiterGaugeLimit(value)}
-                className="flex-1"
-              />
-              <span className="text-xs text-muted-foreground font-medium">60°</span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Match the maximum travel of your saw’s miter gauge. We’ll automatically swap to the
-              complement angle when cuts exceed this limit.
-            </p>
           </div>
         </div>
       </CardContent>

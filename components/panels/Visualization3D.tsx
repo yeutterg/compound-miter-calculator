@@ -82,11 +82,13 @@ function SawSetupDiagram({
   miterGaugeComplement,
   bladeTilt,
   miterGaugeLimit,
+  setMiterGaugeLimit,
 }: {
   miterGauge: number;
   miterGaugeComplement: number;
   bladeTilt: number;
   miterGaugeLimit: number;
+  setMiterGaugeLimit: (value: number) => void;
 }) {
   const topSize = 220;
   const center = topSize / 2;
@@ -128,6 +130,35 @@ function SawSetupDiagram({
             <p className="text-xs font-medium text-sky-200">Complement {complementLabel}</p>
           </div>
         </div>
+
+        {/* Miter Gauge Limit Slider */}
+        <div className="space-y-2 rounded-lg border border-slate-700/60 bg-slate-900/60 p-3">
+          <div className="flex items-baseline justify-between">
+            <Label htmlFor="miterGaugeLimit" className="text-xs font-medium text-slate-300">
+              Miter gauge limit
+            </Label>
+            <span className="text-sm font-semibold text-slate-200">
+              {miterGaugeLimit}°
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-slate-400 font-medium">45°</span>
+            <Slider
+              id="miterGaugeLimit"
+              min={45}
+              max={60}
+              step={5}
+              value={[miterGaugeLimit]}
+              onValueChange={([value]) => setMiterGaugeLimit(value)}
+              className="flex-1"
+            />
+            <span className="text-xs text-slate-400 font-medium">60°</span>
+          </div>
+          <p className="text-xs text-slate-400">
+            Maximum travel of your saw&apos;s miter gauge. Auto-switches to complement when exceeded.
+          </p>
+        </div>
+
         <svg viewBox={`0 0 ${topSize} ${topSize}`} className="w-full">
           {gaugeTicks.map((tickAngle) => {
             const actualAngle = baseAngle - tickAngle;
@@ -392,35 +423,8 @@ export function Visualization3D() {
             miterGaugeComplement={angles.miterGaugeComplement}
             bladeTilt={angles.bladeTilt}
             miterGaugeLimit={miterGaugeLimit}
+            setMiterGaugeLimit={setMiterGaugeLimit}
           />
-
-          {/* Miter Gauge Limit Slider */}
-          <div className="space-y-2 rounded-lg border border-slate-700/60 bg-slate-900/60 p-3">
-            <div className="flex items-baseline justify-between">
-              <Label htmlFor="miterGaugeLimit" className="text-xs font-medium text-slate-300">
-                Miter gauge limit
-              </Label>
-              <span className="text-sm font-semibold text-slate-200">
-                {miterGaugeLimit}°
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-400 font-medium">45°</span>
-              <Slider
-                id="miterGaugeLimit"
-                min={45}
-                max={60}
-                step={5}
-                value={[miterGaugeLimit]}
-                onValueChange={([value]) => setMiterGaugeLimit(value)}
-                className="flex-1"
-              />
-              <span className="text-xs text-slate-400 font-medium">60°</span>
-            </div>
-            <p className="text-xs text-slate-400">
-              Maximum travel of your saw&apos;s miter gauge. Auto-switches to complement when exceeded.
-            </p>
-          </div>
         </div>
 
         <div className="space-y-6">

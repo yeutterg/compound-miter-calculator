@@ -9,7 +9,7 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+        <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight">
@@ -24,7 +24,7 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <main className="w-full max-w-[1920px] mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {/* Sidebar Layout: 1/3 Inputs (Left), 2/3 Outputs + Viz (Right) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           {/* Left Sidebar - INPUTS (1/3 width) */}

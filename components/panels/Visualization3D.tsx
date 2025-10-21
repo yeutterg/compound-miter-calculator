@@ -132,7 +132,7 @@ function SawSetupDiagram({
         </div>
 
         {/* Miter Gauge Limit Slider */}
-        <div className="space-y-2 rounded-lg border border-slate-700/60 bg-slate-900/60 p-3 mb-1">
+        <div className="space-y-2 rounded-lg border border-slate-700/60 bg-slate-900/60 px-3 pt-3 pb-1 mb-0">
           <div className="flex items-baseline justify-between">
             <Label htmlFor="miterGaugeLimit" className="text-xs font-medium text-slate-300">
               Miter gauge limit

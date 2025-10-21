@@ -32,6 +32,7 @@ export function ResultsPanel() {
     thickness,
     lengthUnit,
     includeWaste,
+    miterGaugeLimit,
   } = useCalculatorStore();
 
   // Convert inputs to millimeters (base unit for calculations)
@@ -138,7 +139,12 @@ export function ResultsPanel() {
       <CardContent className="space-y-4 sm:space-y-6">
         {/* Saw Settings Group - Side by Side */}
         <div className="space-y-3">
-          <h3 className="text-sm font-medium text-muted-foreground">Saw Settings</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-muted-foreground">Saw Settings</h3>
+            <span className="text-xs text-muted-foreground">
+              Miter gauge limit: <span className="font-semibold">{miterGaugeLimit}°</span>
+            </span>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <AngleCard
               symbol="γ"

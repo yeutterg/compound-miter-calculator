@@ -159,7 +159,7 @@ function SawSetupDiagram({
           </p>
         </div>
 
-        <svg viewBox="0 40 220 180" className="w-full" preserveAspectRatio="xMidYMin meet">
+        <svg viewBox="0 65 220 155" className="w-full" preserveAspectRatio="xMidYMin meet">
           {gaugeTicks.map((tickAngle) => {
             const actualAngle = baseAngle - tickAngle;
             const isMajor = tickAngle % 15 === 0;

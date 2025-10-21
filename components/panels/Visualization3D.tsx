@@ -122,7 +122,7 @@ function SawSetupDiagram({
 
   return (
     <div className="grid gap-6 rounded-xl border border-white/5 bg-slate-950/60 p-6 text-slate-200 shadow-inner shadow-slate-900/60">
-      <div className="space-y-4">
+      <div className="space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300/90">Miter Gauge γ</p>
           <div className="text-right leading-tight">

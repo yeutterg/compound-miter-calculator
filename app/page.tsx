@@ -24,27 +24,23 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {/* Two Column Layout: ALL Inputs Left, ALL Outputs Right */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {/* Left Column - ALL INPUTS */}
-          <div className="space-y-4 sm:space-y-6">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        {/* Sidebar Layout: 1/3 Inputs (Left), 2/3 Outputs + Viz (Right) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+          {/* Left Sidebar - INPUTS (1/3 width) */}
+          <div className="md:col-span-1 space-y-4 sm:space-y-6">
             <InputPanel />
           </div>
 
-          {/* Right Column - ALL OUTPUTS */}
-          <div className="space-y-4 sm:space-y-6">
+          {/* Right Main Area - OUTPUTS + VISUALIZATIONS (2/3 width) */}
+          <div className="md:col-span-2 space-y-4 sm:space-y-6">
             <ResultsPanel />
+            <Visualization3D />
           </div>
         </div>
 
-        {/* Full Width Bottom - 3D Visualization */}
-        <div className="w-full">
-          <Visualization3D />
-        </div>
-
         {/* Footer Info */}
-        <div className="text-center text-xs sm:text-sm text-muted-foreground border-t pt-4 sm:pt-6">
+        <div className="text-center text-xs sm:text-sm text-muted-foreground border-t pt-4 sm:pt-6 mt-4 sm:mt-6">
           <p>
             Built with Next.js, React Three Fiber, and shadcn/ui
           </p>

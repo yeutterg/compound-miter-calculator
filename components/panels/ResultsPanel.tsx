@@ -167,10 +167,10 @@ export function ResultsPanel() {
           </div>
         </div>
 
-        {/* Measurements Group */}
+        {/* All Results in Horizontal Bar */}
         <div className="space-y-3">
-          <h3 className="text-sm font-medium text-muted-foreground">Measurements</h3>
-          <div className="space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground">Additional Measurements</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <ResultCard
               label="Stock Width"
               value={`${formatNumber(stockWidth, 2)} ${unitLabel}`}
@@ -185,51 +185,38 @@ export function ResultsPanel() {
               tooltip="The angle to trim the top and/or bottom edges (same as your side angle α)"
               copyValue={angles.trimAngle.toString()}
             />
+            {distanceAcrossFlatsResult !== null && (
+              <ResultCard
+                label="Distance Across Flats"
+                value={`${formatNumber(distanceAcrossFlatsResult, 2)} ${unitLabel}`}
+                description="Narrowest width (outer)"
+                tooltip="The narrowest outer dimension measured across parallel flat sides"
+                copyValue={distanceAcrossFlatsResult.toString()}
+                highlight
+              />
+            )}
+            {volumeResult && (
+              <ResultCard
+                label="Interior Volume"
+                value={`${formatNumber(volumeResult.value, 1)} ${volumeResult.label}`}
+                description={volumeResult.context}
+                tooltip="The calculated interior volume accounting for wall thickness and side angle"
+                copyValue={volumeResult.value.toString()}
+                highlight
+              />
+            )}
+            {materialResult && (
+              <ResultCard
+                label={materialResult.label}
+                value={`${formatNumber(materialResult.value, materialResult.unit === 'm³' ? 4 : 2)} ${materialResult.unit}`}
+                description={includeWaste ? 'Includes 10% waste' : 'Material required'}
+                tooltip={`Total ${materialResult.unit === 'm³' ? 'cubic meters' : 'board feet'} of material needed for all ${numberOfSides} pieces`}
+                copyValue={materialResult.value.toString()}
+                highlight
+              />
+            )}
           </div>
         </div>
-
-        {/* Conditional Results */}
-        {distanceAcrossFlatsResult !== null && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground">Clearance</h3>
-            <ResultCard
-              label="Distance Across Flats"
-              value={`${formatNumber(distanceAcrossFlatsResult, 2)} ${unitLabel}`}
-              description="Narrowest width (outer)"
-              tooltip="The narrowest outer dimension measured across parallel flat sides"
-              copyValue={distanceAcrossFlatsResult.toString()}
-              highlight
-            />
-          </div>
-        )}
-
-        {volumeResult && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground">Capacity</h3>
-            <ResultCard
-              label="Interior Volume"
-              value={`${formatNumber(volumeResult.value, 1)} ${volumeResult.label}`}
-              description={volumeResult.context}
-              tooltip="The calculated interior volume accounting for wall thickness and side angle"
-              copyValue={volumeResult.value.toString()}
-              highlight
-            />
-          </div>
-        )}
-
-        {materialResult && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground">Materials</h3>
-            <ResultCard
-              label={materialResult.label}
-              value={`${formatNumber(materialResult.value, materialResult.unit === 'm³' ? 4 : 2)} ${materialResult.unit}`}
-              description={includeWaste ? 'Includes 10% waste' : 'Material required'}
-              tooltip={`Total ${materialResult.unit === 'm³' ? 'cubic meters' : 'board feet'} of material needed for all ${numberOfSides} pieces`}
-              copyValue={materialResult.value.toString()}
-              highlight
-            />
-          </div>
-        )}
       </CardContent>
     </Card>
   );

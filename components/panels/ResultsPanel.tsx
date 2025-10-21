@@ -283,8 +283,8 @@ function AngleCard({
   };
 
   return (
-    <div className={`relative p-6 rounded-lg border bg-gradient-to-br ${color} border-border/50`}>
-      <div className="space-y-4">
+    <div className={`relative p-4 rounded-lg border bg-gradient-to-br ${color} border-border/50`}>
+      <div className="space-y-2">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -324,7 +324,7 @@ function AngleCard({
         </div>
 
         {/* Divider with toggle button */}
-        <div className="relative pt-3">
+        <div className="relative pt-2">
           <div className="absolute inset-x-0 top-0 flex items-center justify-center">
             <Button
               variant="ghost"
@@ -340,7 +340,7 @@ function AngleCard({
         </div>
 
         {/* Complement preview */}
-        <div className="pt-1">
+        <div className="pt-0">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">
               {showComplement ? primaryDescription : `Complement ${complementDescription}`}:

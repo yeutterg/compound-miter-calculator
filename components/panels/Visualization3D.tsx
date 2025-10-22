@@ -212,9 +212,14 @@ function IsometricBowlDiagram({ metrics, sides }: { metrics: VesselMetrics; side
       const x = Math.cos(angle) * radiusMm * scale;
       const z = Math.sin(angle) * radiusMm * scale;
       const projected = isoProject(x, heightMm * scale, z);
+
+      // When flipped, rotate 180° by negating both x and y in the projection
+      const finalX = flipped ? -projected.x : projected.x;
+      const finalY = flipped ? -projected.y : projected.y;
+
       points.push({
-        x: centerX + projected.x,
-        y: centerY + projected.y,
+        x: centerX + finalX,
+        y: centerY + finalY,
       });
     }
     return points;
@@ -310,12 +315,13 @@ function IsometricBowlDiagram({ metrics, sides }: { metrics: VesselMetrics; side
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
-            size="icon"
+            size="sm"
             onClick={() => setFlipped(!flipped)}
-            className="h-7 w-7"
+            className="h-7 gap-1.5 px-2"
             title={flipped ? 'View from below' : 'View from above'}
           >
-            <FlipVertical2 className="h-4 w-4" />
+            <FlipVertical2 className="h-3.5 w-3.5" />
+            <span className="text-xs">Flip</span>
           </Button>
           <p className="text-sm font-medium text-emerald-100">{sides} Segments</p>
         </div>

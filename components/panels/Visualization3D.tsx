@@ -75,6 +75,17 @@ function formatPolygon(points: Array<{ x: number; y: number }>) {
   return points.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
 }
 
+// Isometric projection: converts 3D coordinates (x, y, z) to 2D screen coordinates
+// y-axis points up, x and z form the horizontal plane
+function isoProject(x: number, y: number, z: number) {
+  const cos30 = Math.sqrt(3) / 2; // ≈ 0.866
+  const sin30 = 0.5;
+  return {
+    x: (x - z) * cos30,
+    y: -y + (x + z) * sin30,
+  };
+}
+
 function SawSetupDiagram({
   miterGauge,
   miterGaugeComplement,
@@ -181,82 +192,213 @@ function SawSetupDiagram({
   );
 }
 
-function TopViewDiagram({ metrics, sides }: { metrics: VesselMetrics; sides: number }) {
-  const size = 260;
-  const center = size / 2;
-  const margin = 28;
-  const maxRadius = Math.max(
-    metrics.outerTopRadiusMm,
-    metrics.outerBottomRadiusMm,
-    metrics.innerTopRadiusMm,
-    metrics.innerBottomRadiusMm,
-    1
-  );
-  const scale = (center - margin) / maxRadius;
+function IsometricBowlDiagram({ metrics, sides }: { metrics: VesselMetrics; sides: number }) {
+  const width = 320;
+  const height = 280;
+  const scale = 0.65; // Scale factor for the bowl geometry
 
-  const pointFor = (index: number, radiusMm: number) => {
-    const angle = ((index / sides) * Math.PI * 2) - Math.PI / 2;
-    const radius = radiusMm * scale;
-    return {
-      x: center + Math.cos(angle) * radius,
-      y: center + Math.sin(angle) * radius,
-    };
+  // Center the view
+  const centerX = width / 2;
+  const centerY = height * 0.58;
+
+  // Generate polygon points at a given height and radius
+  const getPolygonPoints3D = (radiusMm: number, heightMm: number, sides: number) => {
+    const points = [];
+    for (let i = 0; i < sides; i++) {
+      const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+      const x = Math.cos(angle) * radiusMm * scale;
+      const z = Math.sin(angle) * radiusMm * scale;
+      const projected = isoProject(x, heightMm * scale, z);
+      points.push({
+        x: centerX + projected.x,
+        y: centerY + projected.y,
+      });
+    }
+    return points;
   };
 
-  const polygonPoints = (radiusMm: number) => {
-    if (radiusMm <= 0) return null;
-    const points = Array.from({ length: sides }, (_, idx) => pointFor(idx, radiusMm));
-    return formatPolygon(points);
-  };
+  // Create points for outer surface at bottom and top
+  const outerBottom = getPolygonPoints3D(metrics.outerBottomRadiusMm, 0, sides);
+  const outerTop = getPolygonPoints3D(metrics.outerTopRadiusMm, metrics.heightMm, sides);
+  const innerBottom = getPolygonPoints3D(metrics.innerBottomRadiusMm, 0, sides);
+  const innerTop = getPolygonPoints3D(metrics.innerTopRadiusMm, metrics.heightMm, sides);
 
-  const outerTop = polygonPoints(metrics.outerTopRadiusMm);
-  const outerBottom = polygonPoints(metrics.outerBottomRadiusMm);
-  const innerTop = polygonPoints(metrics.innerTopRadiusMm);
+  // Generate individual segment faces for the outer surface
+  const outerSegments = [];
+  for (let i = 0; i < sides; i++) {
+    const next = (i + 1) % sides;
+    // Each segment is a quad: bottom-left, bottom-right, top-right, top-left
+    const points = [
+      outerBottom[i],
+      outerBottom[next],
+      outerTop[next],
+      outerTop[i],
+    ];
 
-  const highlightRadiusMm = metrics.outerTopRadiusMm > 0 ? metrics.outerTopRadiusMm : metrics.outerBottomRadiusMm;
-  const highlightPoints = highlightRadiusMm > 0
-    ? [
-        { x: center, y: center },
-        pointFor(0, highlightRadiusMm),
-        pointFor(1, highlightRadiusMm),
-      ]
-    : null;
+    // Calculate if this face is front-facing (simple visibility check)
+    const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+    const normalAngle = angle + Math.PI / 2;
+    // Faces pointing toward viewer (roughly -45° to 135° range) are front-facing
+    const isFrontFacing = normalAngle > -Math.PI * 0.75 && normalAngle < Math.PI * 0.75;
 
-  const wedge = highlightPoints ? `M ${highlightPoints[0].x.toFixed(2)} ${highlightPoints[0].y.toFixed(2)} L ${highlightPoints[1].x.toFixed(2)} ${highlightPoints[1].y.toFixed(2)} L ${highlightPoints[2].x.toFixed(2)} ${highlightPoints[2].y.toFixed(2)} Z` : null;
-  const segmentAngle = 360 / sides;
+    outerSegments.push({
+      points,
+      isFrontFacing,
+      angle: normalAngle,
+    });
+  }
+
+  // Generate inner cavity segments
+  const innerSegments = [];
+  for (let i = 0; i < sides; i++) {
+    const next = (i + 1) % sides;
+    const points = [
+      innerBottom[i],
+      innerBottom[next],
+      innerTop[next],
+      innerTop[i],
+    ];
+
+    const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+    const normalAngle = angle - Math.PI / 2; // Inner faces point inward
+    const isFrontFacing = normalAngle > -Math.PI * 0.75 && normalAngle < Math.PI * 0.75;
+
+    innerSegments.push({
+      points,
+      isFrontFacing,
+      angle: normalAngle,
+    });
+  }
+
+  // Top rim (connecting outer and inner top)
+  const topRimSegments = [];
+  for (let i = 0; i < sides; i++) {
+    const next = (i + 1) % sides;
+    const points = [
+      innerTop[i],
+      innerTop[next],
+      outerTop[next],
+      outerTop[i],
+    ];
+    topRimSegments.push({ points });
+  }
 
   return (
     <div className="space-y-3 rounded-xl border border-white/5 bg-slate-950/60 p-4 text-slate-200 shadow-inner shadow-slate-900/60">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300/90">Top Opening</p>
-        <p className="text-sm font-medium text-emerald-100">{Math.round(metrics.topOpeningMm).toLocaleString()} mm</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300/90">Isometric View</p>
+        <p className="text-sm font-medium text-emerald-100">{sides} Segments</p>
       </div>
-      <svg viewBox={`0 0 ${size} ${size}`} className="w-full">
-        <rect x={0} y={0} width={size} height={size} fill="#020617" rx={16} />
-        {outerBottom && (
-          <polygon points={outerBottom} fill="none" stroke="#64748b" strokeDasharray="8 6" strokeWidth={2} opacity={0.6} />
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
+        <defs>
+          {/* Gradient for outer surface - lighter on front faces */}
+          <linearGradient id="outerGradientFront" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#047857" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="#065f46" stopOpacity="0.85" />
+          </linearGradient>
+          <linearGradient id="outerGradientBack" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#064e3b" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#052e16" stopOpacity="0.6" />
+          </linearGradient>
+          {/* Gradient for inner cavity */}
+          <linearGradient id="innerGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#1e293b" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#0f172a" stopOpacity="1" />
+          </linearGradient>
+          {/* Gradient for top rim */}
+          <linearGradient id="topRimGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#10b981" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#059669" stopOpacity="0.7" />
+          </linearGradient>
+        </defs>
+
+        <rect x={0} y={0} width={width} height={height} fill="#020617" rx={16} />
+
+        {/* Draw back-facing outer segments first (painter's algorithm) */}
+        {outerSegments
+          .filter(seg => !seg.isFrontFacing)
+          .map((seg, idx) => (
+            <polygon
+              key={`outer-back-${idx}`}
+              points={formatPolygon(seg.points)}
+              fill="url(#outerGradientBack)"
+              stroke="#065f46"
+              strokeWidth={0.8}
+              opacity={0.6}
+            />
+          ))}
+
+        {/* Draw inner cavity segments */}
+        {innerSegments.map((seg, idx) => (
+          <polygon
+            key={`inner-${idx}`}
+            points={formatPolygon(seg.points)}
+            fill="url(#innerGradient)"
+            stroke="#334155"
+            strokeWidth={0.6}
+            opacity={0.85}
+          />
+        ))}
+
+        {/* Draw top rim */}
+        {topRimSegments.map((seg, idx) => (
+          <polygon
+            key={`rim-${idx}`}
+            points={formatPolygon(seg.points)}
+            fill="url(#topRimGradient)"
+            stroke="#10b981"
+            strokeWidth={1.2}
+            opacity={0.9}
+          />
+        ))}
+
+        {/* Draw front-facing outer segments last */}
+        {outerSegments
+          .filter(seg => seg.isFrontFacing)
+          .map((seg, idx) => (
+            <polygon
+              key={`outer-front-${idx}`}
+              points={formatPolygon(seg.points)}
+              fill="url(#outerGradientFront)"
+              stroke="#10b981"
+              strokeWidth={1.2}
+              opacity={0.85}
+            />
+          ))}
+
+        {/* Highlight one segment for reference */}
+        {outerSegments[0] && (
+          <polygon
+            points={formatPolygon(outerSegments[0].points)}
+            fill="none"
+            stroke="#34d399"
+            strokeWidth={2}
+            strokeDasharray="4 3"
+            opacity={0.8}
+          />
         )}
-        {wedge && (
-          <path d={wedge} fill="#064e3b" opacity={0.28} />
-        )}
-        {outerTop && (
-          <polygon points={outerTop} fill="#047857" opacity={0.2} stroke="#10b981" strokeWidth={2.4} />
-        )}
-        {innerTop && (
-          <polygon points={innerTop} fill="#020617" stroke="#34d399" strokeWidth={1.6} opacity={0.9} />
-        )}
-        <text x={center} y={center + 4} textAnchor="middle" className="text-[22px] font-semibold fill-emerald-200">
-          {sides}
-        </text>
-        <text x={center} y={center + 24} textAnchor="middle" className="text-[11px] fill-slate-300 tracking-widest uppercase">
-          segments
-        </text>
-        <text x={center + 42} y={center - 52} className="text-[10px] fill-emerald-100">
-          {segmentAngle.toFixed(1)}° per segment
+
+        {/* Top opening outline for clarity */}
+        <polygon
+          points={formatPolygon(outerTop)}
+          fill="none"
+          stroke="#10b981"
+          strokeWidth={1.8}
+          opacity={0.7}
+        />
+
+        {/* Labels */}
+        <text
+          x={width / 2}
+          y={height - 20}
+          textAnchor="middle"
+          className="text-[11px] fill-slate-300"
+        >
+          {metrics.heightMm.toFixed(0)}mm tall × {metrics.bottomFootprintMm.toFixed(0)}mm base
         </text>
       </svg>
       <p className="text-xs text-slate-400">
-        Solid line shows the top opening, dashed outline indicates the footprint. Interior ring displays wall thickness.
+        Isometric view shows the bowl's 3D form with {sides} segments. Highlighted segment shows individual piece geometry.
       </p>
     </div>
   );
@@ -396,10 +538,10 @@ export function Visualization3D() {
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Bowl Preview</h3>
             <p className="mt-2 text-sm text-slate-300">
-              Visual comparison of the top opening, footprint, and wall thickness so you can scale stacked rings or mix-and-match diameters.
+              3D visualization shows how segments stack together to form the bowl, with wall thickness and taper angle clearly visible.
             </p>
           </div>
-          <TopViewDiagram metrics={metrics} sides={numberOfSides} />
+          <IsometricBowlDiagram metrics={metrics} sides={numberOfSides} />
           <ProfileDiagram metrics={metrics} />
         </div>
       </div>

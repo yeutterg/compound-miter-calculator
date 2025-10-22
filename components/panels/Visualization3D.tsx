@@ -398,7 +398,7 @@ function IsometricBowlDiagram({ metrics, sides }: { metrics: VesselMetrics; side
         </text>
       </svg>
       <p className="text-xs text-slate-400">
-        Isometric view shows the bowl's 3D form with {sides} segments. Highlighted segment shows individual piece geometry.
+        Isometric view shows the bowl&apos;s 3D form with {sides} segments. Highlighted segment shows individual piece geometry.
       </p>
     </div>
   );

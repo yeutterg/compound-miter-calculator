@@ -2,6 +2,8 @@
 
 import React, { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { FlipVertical2 } from 'lucide-react';
 import { useCalculatorStore } from '@/lib/store';
 import { calculateAngles } from '@/lib/calculations/angles';
 import {
@@ -193,6 +195,7 @@ function SawSetupDiagram({
 }
 
 function IsometricBowlDiagram({ metrics, sides }: { metrics: VesselMetrics; sides: number }) {
+  const [flipped, setFlipped] = React.useState(true); // Default to flipped (viewing from above)
   const width = 320;
   const height = 280;
   const scale = 0.65; // Scale factor for the bowl geometry
@@ -200,6 +203,7 @@ function IsometricBowlDiagram({ metrics, sides }: { metrics: VesselMetrics; side
   // Center the view
   const centerX = width / 2;
   const centerY = height * 0.58;
+  const flipMultiplier = flipped ? -1 : 1; // Flip the y-axis when flipped
 
   // Generate polygon points at a given height and radius
   const getPolygonPoints3D = (radiusMm: number, heightMm: number, sides: number) => {
@@ -211,7 +215,7 @@ function IsometricBowlDiagram({ metrics, sides }: { metrics: VesselMetrics; side
       const projected = isoProject(x, heightMm * scale, z);
       points.push({
         x: centerX + projected.x,
-        y: centerY + projected.y,
+        y: centerY + projected.y * flipMultiplier,
       });
     }
     return points;
@@ -300,7 +304,18 @@ function IsometricBowlDiagram({ metrics, sides }: { metrics: VesselMetrics; side
     <div className="space-y-3 rounded-xl border border-white/5 bg-slate-950/60 p-4 text-slate-200 shadow-inner shadow-slate-900/60">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300/90">Isometric View</p>
-        <p className="text-sm font-medium text-emerald-100">{sides} Segments</p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setFlipped(!flipped)}
+            className="h-7 w-7"
+            title={flipped ? 'View from below' : 'View from above'}
+          >
+            <FlipVertical2 className="h-4 w-4" />
+          </Button>
+          <p className="text-sm font-medium text-emerald-100">{sides} Segments</p>
+        </div>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
         <defs>

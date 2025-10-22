@@ -203,7 +203,6 @@ function IsometricBowlDiagram({ metrics, sides }: { metrics: VesselMetrics; side
   // Center the view
   const centerX = width / 2;
   const centerY = height * 0.58;
-  const flipMultiplier = flipped ? -1 : 1; // Flip the y-axis when flipped
 
   // Generate polygon points at a given height and radius
   const getPolygonPoints3D = (radiusMm: number, heightMm: number, sides: number) => {
@@ -215,17 +214,21 @@ function IsometricBowlDiagram({ metrics, sides }: { metrics: VesselMetrics; side
       const projected = isoProject(x, heightMm * scale, z);
       points.push({
         x: centerX + projected.x,
-        y: centerY + projected.y * flipMultiplier,
+        y: centerY + projected.y,
       });
     }
     return points;
   };
 
   // Create points for outer surface at bottom and top
-  const outerBottom = getPolygonPoints3D(metrics.outerBottomRadiusMm, 0, sides);
-  const outerTop = getPolygonPoints3D(metrics.outerTopRadiusMm, metrics.heightMm, sides);
-  const innerBottom = getPolygonPoints3D(metrics.innerBottomRadiusMm, 0, sides);
-  const innerTop = getPolygonPoints3D(metrics.innerTopRadiusMm, metrics.heightMm, sides);
+  // When flipped, swap the heights to turn the bowl upside down
+  const bottomHeight = flipped ? metrics.heightMm : 0;
+  const topHeight = flipped ? 0 : metrics.heightMm;
+
+  const outerBottom = getPolygonPoints3D(metrics.outerBottomRadiusMm, bottomHeight, sides);
+  const outerTop = getPolygonPoints3D(metrics.outerTopRadiusMm, topHeight, sides);
+  const innerBottom = getPolygonPoints3D(metrics.innerBottomRadiusMm, bottomHeight, sides);
+  const innerTop = getPolygonPoints3D(metrics.innerTopRadiusMm, topHeight, sides);
 
   // Generate individual segment faces for the outer surface
   const outerSegments = [];

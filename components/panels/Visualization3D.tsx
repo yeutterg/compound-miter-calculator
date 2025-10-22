@@ -283,6 +283,19 @@ function IsometricBowlDiagram({ metrics, sides }: { metrics: VesselMetrics; side
     topRimSegments.push({ points });
   }
 
+  // Bottom surface (flat base connecting outer and inner bottom)
+  const bottomSegments = [];
+  for (let i = 0; i < sides; i++) {
+    const next = (i + 1) % sides;
+    const points = [
+      outerBottom[i],
+      outerBottom[next],
+      innerBottom[next],
+      innerBottom[i],
+    ];
+    bottomSegments.push({ points });
+  }
+
   return (
     <div className="space-y-3 rounded-xl border border-white/5 bg-slate-950/60 p-4 text-slate-200 shadow-inner shadow-slate-900/60">
       <div className="flex items-center justify-between">
@@ -310,6 +323,11 @@ function IsometricBowlDiagram({ metrics, sides }: { metrics: VesselMetrics; side
             <stop offset="0%" stopColor="#10b981" stopOpacity="0.8" />
             <stop offset="100%" stopColor="#059669" stopOpacity="0.7" />
           </linearGradient>
+          {/* Gradient for bottom surface */}
+          <linearGradient id="bottomGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#475569" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#334155" stopOpacity="0.95" />
+          </linearGradient>
         </defs>
 
         <rect x={0} y={0} width={width} height={height} fill="#020617" rx={16} />
@@ -327,6 +345,18 @@ function IsometricBowlDiagram({ metrics, sides }: { metrics: VesselMetrics; side
               opacity={0.6}
             />
           ))}
+
+        {/* Draw bottom surface (flat base) */}
+        {bottomSegments.map((seg, idx) => (
+          <polygon
+            key={`bottom-${idx}`}
+            points={formatPolygon(seg.points)}
+            fill="url(#bottomGradient)"
+            stroke="#64748b"
+            strokeWidth={0.8}
+            opacity={0.85}
+          />
+        ))}
 
         {/* Draw inner cavity segments */}
         {innerSegments.map((seg, idx) => (

@@ -170,13 +170,14 @@ export function ResultsPanel() {
         {/* Measurements Group */}
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-muted-foreground">Measurements</h3>
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <ResultCard
               label="Stock Width"
               value={`${formatNumber(stockWidth, 2)} ${unitLabel}`}
               description="Minimum material width"
               tooltip="The minimum width of stock material needed for each side piece"
               copyValue={stockWidth.toString()}
+              compact
             />
             <ResultCard
               label="α Top/Bottom Trim"
@@ -184,52 +185,43 @@ export function ResultsPanel() {
               description="End cut angle"
               tooltip="The angle to trim the top and/or bottom edges (same as your side angle α)"
               copyValue={angles.trimAngle.toString()}
+              compact
             />
+            {distanceAcrossFlatsResult !== null && (
+              <ResultCard
+                label="Distance Across Flats"
+                value={`${formatNumber(distanceAcrossFlatsResult, 2)} ${unitLabel}`}
+                description="Narrowest width (outer)"
+                tooltip="The narrowest outer dimension measured across parallel flat sides"
+                copyValue={distanceAcrossFlatsResult.toString()}
+                compact
+                highlight
+              />
+            )}
+            {volumeResult && (
+              <ResultCard
+                label="Interior Volume"
+                value={`${formatNumber(volumeResult.value, 1)} ${volumeResult.label}`}
+                description={volumeResult.context}
+                tooltip="The calculated interior volume accounting for wall thickness and side angle"
+                copyValue={volumeResult.value.toString()}
+                compact
+                highlight
+              />
+            )}
+            {materialResult && (
+              <ResultCard
+                label={materialResult.label}
+                value={`${formatNumber(materialResult.value, materialResult.unit === 'm³' ? 4 : 2)} ${materialResult.unit}`}
+                description={includeWaste ? 'Includes 10% waste' : 'Material required'}
+                tooltip={`Total ${materialResult.unit === 'm³' ? 'cubic meters' : 'board feet'} of material needed for all ${numberOfSides} pieces`}
+                copyValue={materialResult.value.toString()}
+                compact
+                highlight
+              />
+            )}
           </div>
         </div>
-
-        {/* Conditional Results */}
-        {distanceAcrossFlatsResult !== null && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground">Clearance</h3>
-            <ResultCard
-              label="Distance Across Flats"
-              value={`${formatNumber(distanceAcrossFlatsResult, 2)} ${unitLabel}`}
-              description="Narrowest width (outer)"
-              tooltip="The narrowest outer dimension measured across parallel flat sides"
-              copyValue={distanceAcrossFlatsResult.toString()}
-              highlight
-            />
-          </div>
-        )}
-
-        {volumeResult && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground">Capacity</h3>
-            <ResultCard
-              label="Interior Volume"
-              value={`${formatNumber(volumeResult.value, 1)} ${volumeResult.label}`}
-              description={volumeResult.context}
-              tooltip="The calculated interior volume accounting for wall thickness and side angle"
-              copyValue={volumeResult.value.toString()}
-              highlight
-            />
-          </div>
-        )}
-
-        {materialResult && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground">Materials</h3>
-            <ResultCard
-              label={materialResult.label}
-              value={`${formatNumber(materialResult.value, materialResult.unit === 'm³' ? 4 : 2)} ${materialResult.unit}`}
-              description={includeWaste ? 'Includes 10% waste' : 'Material required'}
-              tooltip={`Total ${materialResult.unit === 'm³' ? 'cubic meters' : 'board feet'} of material needed for all ${numberOfSides} pieces`}
-              copyValue={materialResult.value.toString()}
-              highlight
-            />
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -373,9 +365,10 @@ interface ResultCardProps {
   copyValue: string;
   tooltip?: string;
   highlight?: boolean;
+  compact?: boolean;
 }
 
-function ResultCard({ label, value, description, copyValue, tooltip, highlight }: ResultCardProps) {
+function ResultCard({ label, value, description, copyValue, tooltip, highlight, compact }: ResultCardProps) {
   const [copied, setCopied] = useState(false);
 
   const copyToClipboard = () => {
@@ -383,6 +376,47 @@ function ResultCard({ label, value, description, copyValue, tooltip, highlight }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  if (compact) {
+    return (
+      <div className={`relative p-3 rounded-lg border ${
+        highlight
+          ? 'bg-primary/5 border-primary/20'
+          : 'bg-muted/50'
+      }`}>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1 min-w-0">
+              <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide truncate">{label}</div>
+              {tooltip && (
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-2.5 w-2.5 text-muted-foreground/60 hover:text-muted-foreground cursor-help shrink-0" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      <p className="text-xs">{tooltip}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={copyToClipboard}
+              className="h-5 w-5 shrink-0"
+              title="Copy to clipboard"
+            >
+              {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            </Button>
+          </div>
+          <div className="text-lg font-bold tracking-tight leading-tight">{value}</div>
+          <div className="text-[10px] text-muted-foreground leading-tight">{description}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`relative p-4 rounded-lg border ${

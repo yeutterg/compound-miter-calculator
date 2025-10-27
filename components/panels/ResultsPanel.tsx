@@ -142,25 +142,25 @@ export function ResultsPanel() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <AngleCard
               symbol="γ"
-              primaryLabel="Miter Gauge"
-              primaryValue={angles.miterGauge}
-              complementValue={angles.miterGaugeComplement}
-              primaryDescription="Miter setting"
-              complementDescription="from square"
-              primaryTooltip="The angle to set your miter gauge for the horizontal cut angle"
-              complementTooltip="The miter gauge angle measured from 90° (square). Alternative reference."
+              primaryLabel="Miter from Square"
+              primaryValue={angles.miterGaugeComplement}
+              complementValue={angles.miterGauge}
+              primaryDescription="from 90°"
+              complementDescription="standard miter"
+              primaryTooltip="The miter gauge angle measured from 90° (square). Alternative reference."
+              complementTooltip="The angle to set your miter gauge for the horizontal cut angle"
               color="from-blue-500/20 to-indigo-500/20"
               textColor="text-blue-600 dark:text-blue-400"
             />
             <AngleCard
               symbol="β"
-              primaryLabel="Blade Tilt"
-              primaryValue={angles.bladeTilt}
-              complementValue={angles.bladeTiltComplement}
-              primaryDescription="Bevel angle"
-              complementDescription="from vertical"
-              primaryTooltip="The angle to tilt your saw blade from horizontal (0°) for the bevel cut"
-              complementTooltip="The blade tilt measured from vertical (90°). Some saws use this reference."
+              primaryLabel="Blade from Vertical"
+              primaryValue={angles.bladeTiltComplement}
+              complementValue={angles.bladeTilt}
+              primaryDescription="from 90°"
+              complementDescription="bevel angle"
+              primaryTooltip="The blade tilt measured from vertical (90°). Some saws use this reference."
+              complementTooltip="The angle to tilt your saw blade from horizontal (0°) for the bevel cut"
               color="from-amber-500/20 to-orange-500/20"
               textColor="text-amber-600 dark:text-amber-400"
             />
